@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React from 'react'
 import { useBudgets } from './useBudgets'
 import type { Budget } from '../types'
 
@@ -30,6 +32,18 @@ const makeBudget = (overrides: Partial<Budget> = {}): Budget => ({
   ...overrides,
 })
 
+function makeWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
 describe('useBudgets', () => {
   const onUnauthorized = vi.fn()
 
@@ -37,75 +51,96 @@ describe('useBudgets', () => {
     vi.clearAllMocks()
   })
 
-  it('starts with empty budgets and null savedMonthlyLimit', () => {
-    const { result } = renderHook(() =>
-      useBudgets({ token: 'token', onUnauthorized })
+  it('starts with empty budgets and null savedMonthlyLimit before data loads', () => {
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([])
+
+    const { result } = renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
     )
+
     expect(result.current.budgets).toEqual([])
     expect(result.current.savedMonthlyLimit).toBeNull()
   })
 
-  it('derives savedMonthlyLimit from the Monthly budget after fetch', async () => {
-    vi.mocked(budgetsApi.getAll).mockResolvedValueOnce([makeBudget({ limit: 1500 })])
+  it('fetches budgets and derives savedMonthlyLimit automatically', async () => {
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([makeBudget({ limit: 1500 })])
 
-    const { result } = renderHook(() =>
-      useBudgets({ token: 'token', onUnauthorized })
+    const { result } = renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
     )
 
-    await act(async () => { await result.current.fetchBudgets() })
-
-    expect(result.current.savedMonthlyLimit).toBe(1500)
+    await waitFor(() => expect(result.current.savedMonthlyLimit).toBe(1500))
   })
 
   it('returns null savedMonthlyLimit when no Monthly budget exists', async () => {
-    vi.mocked(budgetsApi.getAll).mockResolvedValueOnce([
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([
       makeBudget({ category: 'Food', limit: 400 }),
     ])
 
-    const { result } = renderHook(() =>
-      useBudgets({ token: 'token', onUnauthorized })
+    const { result } = renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
     )
 
-    await act(async () => { await result.current.fetchBudgets() })
-
+    await waitFor(() => expect(budgetsApi.getAll).toHaveBeenCalled())
     expect(result.current.savedMonthlyLimit).toBeNull()
   })
 
   it('calls onUnauthorized when the API returns a 401', async () => {
-    vi.mocked(budgetsApi.getAll).mockRejectedValueOnce(new ApiError(401, 'Unauthorized'))
+    vi.mocked(budgetsApi.getAll).mockRejectedValue(new ApiError(401, 'Unauthorized'))
 
-    const { result } = renderHook(() =>
-      useBudgets({ token: 'token', onUnauthorized })
+    renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
     )
 
-    await act(async () => { await result.current.fetchBudgets() })
-
-    expect(onUnauthorized).toHaveBeenCalledOnce()
+    await waitFor(() => expect(onUnauthorized).toHaveBeenCalledOnce())
   })
 
-  it('skips the fetch when token is null', async () => {
-    const { result } = renderHook(() =>
-      useBudgets({ token: null, onUnauthorized })
-    )
+  it('does not fetch when token is null', () => {
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([])
 
-    await act(async () => { await result.current.fetchBudgets() })
+    renderHook(
+      () => useBudgets({ token: null, onUnauthorized }),
+      { wrapper: makeWrapper() }
+    )
 
     expect(budgetsApi.getAll).not.toHaveBeenCalled()
   })
 
-  it('updates savedMonthlyLimit when the budget changes', async () => {
-    vi.mocked(budgetsApi.getAll)
-      .mockResolvedValueOnce([makeBudget({ limit: 1000 })])
-      .mockResolvedValueOnce([makeBudget({ limit: 2000 })])
+  it('exposes saveBudget as a function and isSavingBudget as a boolean', () => {
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([])
 
-    const { result } = renderHook(() =>
-      useBudgets({ token: 'token', onUnauthorized })
+    const { result } = renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
     )
 
-    await act(async () => { await result.current.fetchBudgets() })
-    expect(result.current.savedMonthlyLimit).toBe(1000)
+    expect(typeof result.current.saveBudget).toBe('function')
+    expect(typeof result.current.isSavingBudget).toBe('boolean')
+    expect(result.current.isSavingBudget).toBe(false)
+  })
 
-    await act(async () => { await result.current.fetchBudgets() })
-    expect(result.current.savedMonthlyLimit).toBe(2000)
+  it('reports isSavingBudget true while mutation is in flight', async () => {
+    vi.mocked(budgetsApi.getAll).mockResolvedValue([])
+    let resolveSave!: (v: Budget) => void
+    vi.mocked(budgetsApi.save).mockReturnValue(
+      new Promise<Budget>((res) => { resolveSave = res })
+    )
+
+    const { result } = renderHook(
+      () => useBudgets({ token: 'token', onUnauthorized }),
+      { wrapper: makeWrapper() }
+    )
+
+    void result.current.saveBudget({ category: 'Monthly', limit: 1000, month: '2026-05' })
+
+    await waitFor(() => expect(result.current.isSavingBudget).toBe(true))
+
+    resolveSave(makeBudget({ limit: 1000 }))
+
+    await waitFor(() => expect(result.current.isSavingBudget).toBe(false))
   })
 })

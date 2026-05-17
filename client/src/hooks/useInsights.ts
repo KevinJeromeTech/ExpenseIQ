@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { insightsApi, ApiError } from "../services/api";
 import type { Insight } from "../types";
@@ -6,22 +7,21 @@ import type { Insight } from "../types";
 type Options = { token: string | null; onUnauthorized: () => void };
 
 export function useInsights({ token, onUnauthorized }: Options) {
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const { data, error } = useQuery({
+    queryKey: ["insights", token],
+    queryFn: () => insightsApi.get(token!),
+    enabled: !!token,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
 
-  const fetchInsights = useCallback(async () => {
-    if (!token) return;
-    try {
-      const data = await insightsApi.get(token);
-      setInsights(Array.isArray(data?.insights) ? data.insights : []);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        onUnauthorized();
-        return;
-      }
-      toast.error("Failed to load insights.");
-      setInsights([]);
-    }
-  }, [token, onUnauthorized]);
+  useEffect(() => {
+    if (!error) return;
+    if (error instanceof ApiError && error.status === 401) onUnauthorized();
+    else toast.error("Failed to load insights.");
+  }, [error, onUnauthorized]);
 
-  return { insights, fetchInsights };
+  const insights: Insight[] = Array.isArray(data?.insights) ? data.insights : [];
+
+  return { insights };
 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import "./App.css";
 import type { Transaction } from "./types";
-import { ApiError } from "./services/api";
 import { useAuth } from "./hooks/useAuth";
 import { useTransactions } from "./hooks/useTransactions";
 import { useBudgets } from "./hooks/useBudgets";
@@ -27,15 +27,22 @@ const DEMO_TRANSACTIONS = [
 
 function App() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { token, user, onLoginSuccess, handleUnauthorized, logout } = useAuth();
 
-  const { transactions, isLoading: isLoadingTransactions, fetchTransactions, createTransaction, updateTransaction, removeTransaction } =
-    useTransactions({ token, onUnauthorized: handleUnauthorized });
+  const {
+    transactions,
+    isLoading: isLoadingTransactions,
+    isSaving,
+    createTransaction,
+    updateTransaction,
+    removeTransaction,
+  } = useTransactions({ token, onUnauthorized: handleUnauthorized });
 
-  const { savedMonthlyLimit, fetchBudgets, saveBudget: saveBudgetApi } =
+  const { savedMonthlyLimit, saveBudget, isSavingBudget } =
     useBudgets({ token, onUnauthorized: handleUnauthorized });
 
-  const { insights, fetchInsights } =
+  const { insights } =
     useInsights({ token, onUnauthorized: handleUnauthorized });
 
   // Transaction form state
@@ -44,7 +51,6 @@ function App() {
   const [category, setCategory] = useState("Shopping");
   const [recurring, setRecurring] = useState("none");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [isSavingTransaction, setIsSavingTransaction] = useState(false);
 
   // Filter / sort state
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -56,21 +62,13 @@ function App() {
   const [budgetInputValue, setBudgetInputValue] = useState<number | "">("");
   const monthlyBudget = budgetInputValue !== "" ? budgetInputValue : (savedMonthlyLimit ?? "");
   const setMonthlyBudget = setBudgetInputValue;
-  const [isSavingBudget, setIsSavingBudget] = useState(false);
 
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
-  const refreshAll = useCallback(
-    () => Promise.all([fetchTransactions(), fetchBudgets(), fetchInsights()]),
-    [fetchTransactions, fetchBudgets, fetchInsights]
-  );
-
-  useEffect(() => {
-    if (!token) return;
-    void refreshAll();
-    const id = setInterval(() => void refreshAll(), 10_000);
-    return () => clearInterval(id);
-  }, [token, refreshAll]);
+  const handleLogout = useCallback(() => {
+    logout();
+    queryClient.clear();
+  }, [logout, queryClient]);
 
   const resetForm = () => {
     setMerchant("");
@@ -81,31 +79,26 @@ function App() {
   };
 
   const handleSaveBudget = async () => {
-    if (monthlyBudget === "" || Number(monthlyBudget) <= 0 || isSavingBudget) {
+    if (monthlyBudget === "" || Number(monthlyBudget) <= 0) {
       toast.error("Please enter a valid monthly budget.");
       return;
     }
     try {
-      setIsSavingBudget(true);
-      await saveBudgetApi({
+      await saveBudget({
         category: "Monthly",
         limit: Number(monthlyBudget),
         month: new Date().toISOString().slice(0, 7),
       });
-      await Promise.all([fetchBudgets(), fetchInsights()]);
       toast.success("Budget saved!");
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
-      toast.error(error instanceof Error ? error.message : "Budget save failed");
-    } finally {
-      setIsSavingBudget(false);
+    } catch {
+      // error toast shown in useBudgets
     }
   };
 
   const addTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!merchant.trim() || !amount || !category || isSavingTransaction) {
+    if (!merchant.trim() || !amount || !category || isSaving) {
       toast.error("Please fill in merchant, amount, and category.");
       return;
     }
@@ -132,22 +125,16 @@ function App() {
     };
 
     try {
-      setIsSavingTransaction(true);
-
       if (editingId !== null) {
         await updateTransaction(editingId, payload);
+        toast.success("Transaction updated!");
       } else {
         await createTransaction(payload);
+        toast.success("Transaction added!");
       }
-
-      toast.success(editingId !== null ? "Transaction updated!" : "Transaction added!");
       resetForm();
-      await refreshAll();
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
-      toast.error(error instanceof Error ? error.message : "Transaction failed.");
-    } finally {
-      setIsSavingTransaction(false);
+    } catch {
+      // error toast shown in useTransactions
     }
   };
 
@@ -155,11 +142,9 @@ function App() {
     if (!window.confirm("Are you sure you want to delete this transaction?")) return;
     try {
       await removeTransaction(id);
-      await refreshAll();
       toast.success("Transaction deleted.");
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
-      toast.error(error instanceof Error ? error.message : "Delete failed");
+    } catch {
+      // error toast shown in useTransactions
     }
   };
 
@@ -173,22 +158,17 @@ function App() {
   };
 
   const seedDemoTransactions = async () => {
-    if (isSavingTransaction) return;
+    if (isSaving) return;
     const now = new Date();
     try {
-      setIsSavingTransaction(true);
       for (const { merchant, amount, category, daysAgo } of DEMO_TRANSACTIONS) {
         const date = new Date(now);
         date.setDate(now.getDate() - daysAgo);
         await createTransaction({ merchant, amount, category, createdAt: date.toISOString() });
       }
-      await refreshAll();
       toast.success("Demo transactions added!");
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
-      toast.error(error instanceof Error ? error.message : "Demo seed failed");
-    } finally {
-      setIsSavingTransaction(false);
+    } catch {
+      // error toast shown in useTransactions
     }
   };
 
@@ -221,8 +201,7 @@ function App() {
     [transactions]
   );
 
-  const budgetAmount = useMemo(() => (savedMonthlyLimit ?? 0), [savedMonthlyLimit]);
-
+  const budgetAmount = useMemo(() => savedMonthlyLimit ?? 0, [savedMonthlyLimit]);
   const remainingBudget = useMemo(() => budgetAmount - totalSpent, [budgetAmount, totalSpent]);
 
   const budgetUsedPercent = useMemo(
@@ -345,7 +324,7 @@ function App() {
       <Route
         element={
           <ProtectedRoute token={token}>
-            <AppLayout userEmail={user.email} onLogout={logout} />
+            <AppLayout userEmail={user.email} onLogout={handleLogout} />
           </ProtectedRoute>
         }
       >
@@ -393,7 +372,7 @@ function App() {
               setSortOption={setSortOption}
               recurring={recurring}
               setRecurring={setRecurring}
-              isSavingTransaction={isSavingTransaction}
+              isSavingTransaction={isSaving}
               isLoading={isLoadingTransactions}
               addTransaction={addTransaction}
               seedDemoTransactions={seedDemoTransactions}

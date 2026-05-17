@@ -38,7 +38,8 @@ export default function AnalyticsPage({
     <>
       <section className="card">
         <div className="section-header">
-          <h3>Analytics Filters</h3>
+          <p className="chart-section-label">⚡ Date Range</p>
+          <h3>Filter Analytics</h3>
         </div>
 
         <div className="filter-row">
@@ -70,7 +71,8 @@ export default function AnalyticsPage({
 
       <section className="card">
         <div className="section-header">
-          <h3>Smart Analytics Insights</h3>
+          <p className="chart-section-label">🧠 AI Powered</p>
+          <h3>Spending Insights</h3>
         </div>
 
         <div className="insight-list">
@@ -110,6 +112,7 @@ export default function AnalyticsPage({
 
       <section className="card chart-card">
         <div className="section-header">
+          <p className="chart-section-label">📈 Trend</p>
           <h3>Daily Spending</h3>
         </div>
 
@@ -139,6 +142,7 @@ export default function AnalyticsPage({
 
       <section className="card chart-card">
         <div className="section-header">
+          <p className="chart-section-label">📊 Cumulative</p>
           <h3>Total Spending Over Time</h3>
         </div>
 
@@ -168,6 +172,7 @@ export default function AnalyticsPage({
 
       <section className="card chart-card">
         <div className="section-header">
+          <p className="chart-section-label">🏷️ Breakdown</p>
           <h3>Spending by Category</h3>
         </div>
 

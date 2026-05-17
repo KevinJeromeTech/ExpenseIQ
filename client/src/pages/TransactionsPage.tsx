@@ -211,8 +211,14 @@ export default function TransactionsPage({
               <div key={t.id} className="transaction-row">
                 <div>
                   <p className="merchant">{t.merchant}</p>
-                  <p className="category-badge">{t.category}</p>
-
+                  <p className="category-badge" data-category={t.category}>{t.category}</p>
+                  <p className="transaction-date">
+                    {new Date(t.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
                   {t.isRecurring && (
                     <p className="recurring-badge">🔁 {t.frequency}</p>
                   )}

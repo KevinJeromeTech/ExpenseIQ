@@ -18,6 +18,7 @@ export default function AppLayout({
           {/* BRAND */}
           <Link to="/dashboard" className="app-nav-brand">
             <img src={logo} alt="ExpenseIQ Logo" className="nav-logo" />
+            <span className="nav-title">ExpenseIQ</span>
           </Link>
 
           {/* NAV LINKS */}

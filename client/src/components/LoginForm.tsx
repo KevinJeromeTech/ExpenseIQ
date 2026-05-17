@@ -1,12 +1,11 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import logo from "../assets/logoiq.png";
+import { authApi } from "../services/api";
 
 type AuthFormProps = {
   onLoginSuccess: (token: string, user: { id: number; email: string }) => void;
 };
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -26,56 +25,19 @@ export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
       }
 
       if (mode === "signup") {
-        const registerRes = await fetch(`${API_BASE}/api/auth/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email.trim(),
-            password: password.trim(),
-          }),
-        });
-
-        const registerData = await registerRes.json();
-
-        if (!registerRes.ok) {
-          throw new Error(registerData.error || "Signup failed");
-        }
-
+        await authApi.register(email.trim(), password.trim());
         toast.success("Account created successfully!");
       }
 
-      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password.trim(),
-        }),
-      });
-
-      const loginData = await loginRes.json();
-
-      if (!loginRes.ok) {
-        throw new Error(loginData.error || "Login failed");
-      }
-
-      localStorage.setItem("token", loginData.token);
-      localStorage.setItem("user", JSON.stringify(loginData.user));
+      const { token, user } = await authApi.login(email.trim(), password.trim());
 
       setEmail("");
       setPassword("");
 
       toast.success(mode === "login" ? "Welcome back!" : "Signed in successfully!");
-
-      onLoginSuccess(loginData.token, loginData.user);
+      onLoginSuccess(token, user);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong";
-
+      const message = err instanceof Error ? err.message : "Something went wrong";
       setError(message);
       toast.error(message);
     } finally {

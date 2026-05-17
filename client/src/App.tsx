@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import "./App.css";
-import type { Budget, Transaction, InsightsResponse, Insight } from "./types";
+import type { Transaction } from "./types";
+import { ApiError } from "./services/api";
+import { useAuth } from "./hooks/useAuth";
+import { useTransactions } from "./hooks/useTransactions";
+import { useBudgets } from "./hooks/useBudgets";
+import { useInsights } from "./hooks/useInsights";
 import LoginForm from "./components/LoginForm";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
@@ -10,232 +15,87 @@ import DashboardPage from "./pages/DashboardPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-
-type User = {
-  id: number;
-  email: string;
-};
-
 type DateRange = "7d" | "30d" | "all";
+
+const DEMO_TRANSACTIONS = [
+  { merchant: "Publix", amount: 42.35, category: "Food", daysAgo: 1 },
+  { merchant: "Shell", amount: 38.2, category: "Transport", daysAgo: 2 },
+  { merchant: "Amazon", amount: 86.99, category: "Shopping", daysAgo: 3 },
+  { merchant: "Netflix", amount: 15.49, category: "Entertainment", daysAgo: 5 },
+  { merchant: "FPL", amount: 126.75, category: "Bills", daysAgo: 7 },
+];
 
 function App() {
   const location = useLocation();
+  const { token, user, onLoginSuccess, handleUnauthorized, logout } = useAuth();
 
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
+  const { transactions, isLoading: isLoadingTransactions, fetchTransactions, createTransaction, updateTransaction, removeTransaction } =
+    useTransactions({ token, onUnauthorized: handleUnauthorized });
 
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      localStorage.removeItem("user");
-      return null;
-    }
-  });
+  const { savedMonthlyLimit, fetchBudgets, saveBudget: saveBudgetApi } =
+    useBudgets({ token, onUnauthorized: handleUnauthorized });
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { insights, fetchInsights } =
+    useInsights({ token, onUnauthorized: handleUnauthorized });
+
+  // Transaction form state
   const [merchant, setMerchant] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Shopping");
   const [recurring, setRecurring] = useState("none");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSavingTransaction, setIsSavingTransaction] = useState(false);
+
+  // Filter / sort state
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("newest");
-  const [editingId, setEditingId] = useState<number | null>(null);
-
-  const [monthlyBudget, setMonthlyBudget] = useState<number | "">("");
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
-
-  const [isSavingTransaction, setIsSavingTransaction] = useState(false);
-  const [isSavingBudget, setIsSavingBudget] = useState(false);
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
-
- 
   const [dateRange, setDateRange] = useState<DateRange>("all");
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+  // Budget form: user's draft input; falls back to server-confirmed value when empty
+  const [budgetInputValue, setBudgetInputValue] = useState<number | "">("");
+  const monthlyBudget = budgetInputValue !== "" ? budgetInputValue : (savedMonthlyLimit ?? "");
+  const setMonthlyBudget = setBudgetInputValue;
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
 
-  const authHeaders = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  });
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
-  const handleLoginSuccess = (
-    newToken: string,
-    loggedInUser: { id: number; email: string }
-  ) => {
-    setToken(newToken);
-    setUser(loggedInUser);
-  };
-
-  const handleUnauthorized = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setToken(null);
-    setUser(null);
-    setTransactions([]);
-    setBudgets([]);
-    setInsights([]);
-    toast.error("Session expired. Please log in again.");
-  };
-
-  const handleLogout = () => {
-    handleUnauthorized();
-  };
-
-  const fetchTransactions = async () => {
-    if (!token) return;
-
-    try {
-      setIsLoadingTransactions(true);
-
-      const res = await fetch(`${API_BASE}/api/transactions`, {
-        headers: authHeaders(),
-      });
-
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch transactions");
-      }
-
-      setTransactions(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch transactions:", error);
-      setTransactions([]);
-      toast.error("Failed to load transactions.");
-    } finally {
-      setIsLoadingTransactions(false);
-    }
-  };
-
-  const fetchBudgets = async () => {
-    if (!token) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/api/budgets`, {
-        headers: authHeaders(),
-      });
-
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch budgets");
-      }
-
-      setBudgets(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch budgets:", error);
-      setBudgets([]);
-      toast.error("Failed to load budgets.");
-    }
-  };
-
-  const fetchInsights = async () => {
-    if (!token) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/api/insights`, {
-        headers: authHeaders(),
-      });
-
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      const data: InsightsResponse = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          (data as { error?: string }).error || "Failed to fetch insights"
-        );
-      }
-
-      setInsights(Array.isArray(data?.insights) ? data.insights : []);
-    } catch (error) {
-      console.error("Failed to fetch insights:", error);
-      setInsights([]);
-      toast.error("Failed to load insights.");
-    }
-  };
+  const refreshAll = useCallback(
+    () => Promise.all([fetchTransactions(), fetchBudgets(), fetchInsights()]),
+    [fetchTransactions, fetchBudgets, fetchInsights]
+  );
 
   useEffect(() => {
     if (!token) return;
+    void refreshAll();
+    const id = setInterval(() => void refreshAll(), 10_000);
+    return () => clearInterval(id);
+  }, [token, refreshAll]);
 
-    const loadAll = async () => {
-      await Promise.all([fetchTransactions(), fetchBudgets(), fetchInsights()]);
-    };
+  const resetForm = () => {
+    setMerchant("");
+    setAmount("");
+    setCategory("Shopping");
+    setRecurring("none");
+    setEditingId(null);
+  };
 
-    void loadAll();
-
-    const interval = setInterval(() => {
-      void loadAll();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [token]);
-
-  useEffect(() => {
-    if (budgets.length > 0) {
-      setMonthlyBudget(budgets[0].limit);
-    } else {
-      setMonthlyBudget("");
-    }
-  }, [budgets]);
-
-  const saveBudget = async () => {
+  const handleSaveBudget = async () => {
     if (monthlyBudget === "" || Number(monthlyBudget) <= 0 || isSavingBudget) {
       toast.error("Please enter a valid monthly budget.");
       return;
     }
-
     try {
       setIsSavingBudget(true);
-
-      const res = await fetch(`${API_BASE}/api/budgets`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          category: "Monthly",
-          limit: Number(monthlyBudget),
-          month: new Date().toISOString().slice(0, 7),
-        }),
+      await saveBudgetApi({
+        category: "Monthly",
+        limit: Number(monthlyBudget),
+        month: new Date().toISOString().slice(0, 7),
       });
-
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to save budget");
-      }
-
-      await fetchBudgets();
-      await fetchInsights();
-
+      await Promise.all([fetchBudgets(), fetchInsights()]);
       toast.success("Budget saved!");
     } catch (error) {
-      console.error("Failed to save budget:", error);
+      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
       toast.error(error instanceof Error ? error.message : "Budget save failed");
     } finally {
       setIsSavingBudget(false);
@@ -250,139 +110,82 @@ function App() {
       return;
     }
 
-    const isDuplicate =
-      editingId === null &&
-      transactions.some((t) => {
-        const sameMerchant =
-          t.merchant.toLowerCase() === merchant.trim().toLowerCase();
-
-        const sameAmount = t.amount === Number(amount);
-
-        const sameDay =
-          new Date(t.createdAt).toISOString().split("T")[0] ===
-          new Date().toISOString().split("T")[0];
-
-        return sameMerchant && sameAmount && sameDay;
-      });
-
-    if (isDuplicate) {
-      toast.error("This transaction already exists today.");
-      return;
+    if (editingId === null) {
+      const isDuplicate = transactions.some(
+        (t) =>
+          t.merchant.toLowerCase() === merchant.trim().toLowerCase() &&
+          t.amount === Number(amount) &&
+          new Date(t.createdAt).toDateString() === new Date().toDateString()
+      );
+      if (isDuplicate) {
+        toast.error("This transaction already exists today.");
+        return;
+      }
     }
+
+    const payload = {
+      merchant: merchant.trim(),
+      amount: Number(amount),
+      category,
+      isRecurring: recurring !== "none",
+      frequency: recurring !== "none" ? recurring : null,
+    };
 
     try {
       setIsSavingTransaction(true);
 
-      const url =
-        editingId !== null
-          ? `${API_BASE}/api/transactions/${editingId}`
-          : `${API_BASE}/api/transactions`;
-
-      const method = editingId !== null ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: authHeaders(),
-        body: JSON.stringify({
-          merchant: merchant.trim(),
-          amount: Number(amount),
-          category,
-          isRecurring: recurring !== "none",
-          frequency: recurring !== "none" ? recurring : null,
-        }),
-      });
-
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
+      if (editingId !== null) {
+        await updateTransaction(editingId, payload);
+      } else {
+        await createTransaction(payload);
       }
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to save transaction");
-      }
-
-      toast.success(
-        editingId !== null ? "Transaction updated!" : "Transaction added!"
-      );
-
-      setMerchant("");
-      setAmount("");
-      setCategory("Shopping");
-      setRecurring("none");
-      setEditingId(null);
-
-      await fetchTransactions();
-      await fetchInsights();
-      await fetchBudgets();
+      toast.success(editingId !== null ? "Transaction updated!" : "Transaction added!");
+      resetForm();
+      await refreshAll();
     } catch (error) {
-      console.error("Failed to save transaction:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Transaction failed. Check the console."
-      );
+      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
+      toast.error(error instanceof Error ? error.message : "Transaction failed.");
     } finally {
       setIsSavingTransaction(false);
     }
   };
 
+  const deleteTransaction = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+    try {
+      await removeTransaction(id);
+      await refreshAll();
+      toast.success("Transaction deleted.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
+      toast.error(error instanceof Error ? error.message : "Delete failed");
+    }
+  };
+
+  const startEditing = (t: Transaction) => {
+    setEditingId(t.id);
+    setMerchant(t.merchant);
+    setAmount(t.amount.toString());
+    setCategory(t.category);
+    setRecurring(t.isRecurring ? (t.frequency ?? "none") : "none");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const seedDemoTransactions = async () => {
     if (isSavingTransaction) return;
-
     const now = new Date();
-
-    const demoTransactions = [
-      { merchant: "Publix", amount: 42.35, category: "Food", daysAgo: 1 },
-      { merchant: "Shell", amount: 38.2, category: "Transport", daysAgo: 2 },
-      { merchant: "Amazon", amount: 86.99, category: "Shopping", daysAgo: 3 },
-      {
-        merchant: "Netflix",
-        amount: 15.49,
-        category: "Entertainment",
-        daysAgo: 5,
-      },
-      { merchant: "FPL", amount: 126.75, category: "Bills", daysAgo: 7 },
-    ];
-
     try {
       setIsSavingTransaction(true);
-
-      for (const transaction of demoTransactions) {
+      for (const { merchant, amount, category, daysAgo } of DEMO_TRANSACTIONS) {
         const date = new Date(now);
-        date.setDate(now.getDate() - transaction.daysAgo);
-
-        const res = await fetch(`${API_BASE}/api/transactions`, {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify({
-            merchant: transaction.merchant,
-            amount: transaction.amount,
-            category: transaction.category,
-            createdAt: date.toISOString(),
-          }),
-        });
-
-        if (res.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to seed demo transaction");
-        }
+        date.setDate(now.getDate() - daysAgo);
+        await createTransaction({ merchant, amount, category, createdAt: date.toISOString() });
       }
-
-      await fetchTransactions();
-      await fetchInsights();
-      await fetchBudgets();
-
+      await refreshAll();
       toast.success("Demo transactions added!");
     } catch (error) {
-      console.error("Failed to seed demo transactions:", error);
+      if (error instanceof ApiError && error.status === 401) { handleUnauthorized(); return; }
       toast.error(error instanceof Error ? error.message : "Demo seed failed");
     } finally {
       setIsSavingTransaction(false);
@@ -390,102 +193,42 @@ function App() {
   };
 
   const exportTransactionsCSV = () => {
-    if (transactions.length === 0) {
-      toast.error("No transactions to export.");
-      return;
-    }
-
+    if (transactions.length === 0) { toast.error("No transactions to export."); return; }
     const headers = ["Merchant", "Amount", "Category", "Date"];
-
-    const rows = transactions.map((transaction) => [
-      transaction.merchant,
-      transaction.amount.toFixed(2),
-      transaction.category,
-      new Date(transaction.createdAt).toISOString().split("T")[0],
+    const rows = transactions.map((t) => [
+      t.merchant,
+      t.amount.toFixed(2),
+      t.category,
+      new Date(t.createdAt).toISOString().split("T")[0],
     ]);
-
     const csv = [headers, ...rows]
-      .map((row) => row.map((value) => `"${value}"`).join(","))
+      .map((row) => row.map((v) => `"${v}"`).join(","))
       .join("\n");
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = "expenseiq-transactions.csv";
     link.click();
-
     URL.revokeObjectURL(url);
-
     toast.success("CSV exported!");
   };
 
-  const deleteTransaction = async (id: number) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this transaction?"
-    );
+  // ── Derived state ────────────────────────────────────────────────────────────
 
-    if (!confirmed) return;
+  const totalSpent = useMemo(
+    () => transactions.reduce((sum, t) => sum + t.amount, 0),
+    [transactions]
+  );
 
-    try {
-      const res = await fetch(`${API_BASE}/api/transactions/${id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
+  const budgetAmount = useMemo(() => (savedMonthlyLimit ?? 0), [savedMonthlyLimit]);
 
-      if (res.status === 401) {
-        handleUnauthorized();
-        return;
-      }
+  const remainingBudget = useMemo(() => budgetAmount - totalSpent, [budgetAmount, totalSpent]);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to delete transaction");
-      }
-
-      await fetchTransactions();
-      await fetchInsights();
-      await fetchBudgets();
-
-      toast.success("Transaction deleted.");
-    } catch (error) {
-      console.error("Failed to delete transaction:", error);
-      toast.error(error instanceof Error ? error.message : "Delete failed");
-    }
-  };
-
-  const startEditing = (transaction: Transaction) => {
-    setEditingId(transaction.id);
-    setMerchant(transaction.merchant);
-    setAmount(transaction.amount.toString());
-    setCategory(transaction.category);
-    setRecurring(
-      transaction.isRecurring ? transaction.frequency || "none" : "none"
-    );
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const totalSpent = useMemo(() => {
-    return transactions.reduce(
-      (sum, transaction) => sum + transaction.amount,
-      0
-    );
-  }, [transactions]);
-
-  const budgetAmount = useMemo(() => {
-    return monthlyBudget ? Number(monthlyBudget) : 0;
-  }, [monthlyBudget]);
-
-  const remainingBudget = useMemo(() => {
-    return budgetAmount - totalSpent;
-  }, [budgetAmount, totalSpent]);
-
-  const budgetUsedPercent = useMemo(() => {
-    if (!budgetAmount) return 0;
-    return Math.min((totalSpent / budgetAmount) * 100, 100);
-  }, [totalSpent, budgetAmount]);
+  const budgetUsedPercent = useMemo(
+    () => (budgetAmount ? Math.min((totalSpent / budgetAmount) * 100, 100) : 0),
+    [totalSpent, budgetAmount]
+  );
 
   const budgetStatus = useMemo(() => {
     if (!budgetAmount) return "No budget set";
@@ -496,163 +239,73 @@ function App() {
 
   const topCategory = useMemo(() => {
     if (transactions.length === 0) return "N/A";
-
     const totals: Record<string, number> = {};
-
-    for (const transaction of transactions) {
-      totals[transaction.category] =
-        (totals[transaction.category] || 0) + transaction.amount;
-    }
-
+    for (const t of transactions) totals[t.category] = (totals[t.category] ?? 0) + t.amount;
     return Object.entries(totals).sort((a, b) => b[1] - a[1])[0][0];
   }, [transactions]);
 
   const monthlyReport = useMemo(() => {
     if (transactions.length === 0) {
-      return {
-        totalSpent: 0,
-        transactionCount: 0,
-        topCategory: "N/A",
-        largestPurchase: "N/A",
-        largestAmount: 0,
-        budgetStatus,
-      };
-    } 
-
-    const largestTransaction = [...transactions].sort(
-      (a, b) => b.amount - a.amount
-    )[0];
-
-    return {
-      totalSpent,
-      transactionCount: transactions.length,
-      topCategory,
-      largestPurchase: largestTransaction.merchant,
-      largestAmount: largestTransaction.amount,
-      budgetStatus,
-    };
+      return { totalSpent: 0, transactionCount: 0, topCategory: "N/A", largestPurchase: "N/A", largestAmount: 0, budgetStatus };
+    }
+    const largest = [...transactions].sort((a, b) => b.amount - a.amount)[0];
+    return { totalSpent, transactionCount: transactions.length, topCategory, largestPurchase: largest.merchant, largestAmount: largest.amount, budgetStatus };
   }, [transactions, totalSpent, topCategory, budgetStatus]);
 
   const filteredTransactions = useMemo(() => {
-    const result = transactions.filter((transaction) => {
-      const matchesCategory =
-        selectedCategory === "All" || transaction.category === selectedCategory;
-
-      const matchesSearch = transaction.merchant
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-
-      return matchesCategory && matchesSearch;
-    });
-
-    switch (sortOption) {
-      case "newest":
-        result.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() -
-            new Date(a.createdAt).getTime()
-        );
-        break;
-      case "oldest":
-        result.sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime()
-        );
-        break;
-      case "highest":
-        result.sort((a, b) => b.amount - a.amount);
-        break;
-      case "lowest":
-        result.sort((a, b) => a.amount - b.amount);
-        break;
-    }
-
-    return result;
+    const result = transactions.filter(
+      (t) =>
+        (selectedCategory === "All" || t.category === selectedCategory) &&
+        t.merchant.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const comparators: Record<string, (a: Transaction, b: Transaction) => number> = {
+      newest: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      oldest: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      highest: (a, b) => b.amount - a.amount,
+      lowest: (a, b) => a.amount - b.amount,
+    };
+    return result.sort(comparators[sortOption] ?? comparators.newest);
   }, [transactions, selectedCategory, searchQuery, sortOption]);
 
   const analyticsTransactions = useMemo(() => {
     if (dateRange === "all") return transactions;
-
     const days = dateRange === "7d" ? 7 : 30;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-
-    return transactions.filter(
-      (transaction) => new Date(transaction.createdAt) >= cutoff
-    );
+    return transactions.filter((t) => new Date(t.createdAt) >= cutoff);
   }, [transactions, dateRange]);
 
   const categoryChartData = useMemo(() => {
     const totals: Record<string, number> = {};
-
-    for (const transaction of analyticsTransactions) {
-      totals[transaction.category] =
-        (totals[transaction.category] || 0) + transaction.amount;
-    }
-
-    return Object.entries(totals).map(([category, total]) => ({
-      category,
-      total: Number(total.toFixed(2)),
-    }));
+    for (const t of analyticsTransactions) totals[t.category] = (totals[t.category] ?? 0) + t.amount;
+    return Object.entries(totals).map(([category, total]) => ({ category, total: Number(total.toFixed(2)) }));
   }, [analyticsTransactions]);
 
   const trendData = useMemo(() => {
-    const totalsByDate: Record<string, number> = {};
-
-    for (const transaction of analyticsTransactions) {
-      const date = new Date(transaction.createdAt).toISOString().split("T")[0];
-      totalsByDate[date] = (totalsByDate[date] || 0) + transaction.amount;
+    const byDate: Record<string, number> = {};
+    for (const t of analyticsTransactions) {
+      const date = new Date(t.createdAt).toISOString().split("T")[0];
+      byDate[date] = (byDate[date] ?? 0) + t.amount;
     }
-
-    return Object.entries(totalsByDate)
-      .map(([date, amount]) => ({
-        date,
-        amount: Number(amount.toFixed(2)),
-      }))
+    return Object.entries(byDate)
+      .map(([date, amount]) => ({ date, amount: Number(amount.toFixed(2)) }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [analyticsTransactions]);
 
-  const cumulativeTrendData = useMemo(() => {
-    let runningTotal = 0;
-    const groupedByDate: Record<string, number> = {};
-
-    for (const transaction of analyticsTransactions) {
-      const date = new Date(transaction.createdAt).toISOString().split("T")[0];
-
-      groupedByDate[date] =
-        (groupedByDate[date] || 0) + transaction.amount;
-    }
-
-    return Object.entries(groupedByDate)
-      .map(([date, amount]) => ({
-        date,
-        amount,
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map((item) => {
-        runningTotal += item.amount;
-
-        return {
-          date: item.date,
-          total: Number(runningTotal.toFixed(2)),
-        };
-      });
-  }, [analyticsTransactions]);
+  const cumulativeTrendData = useMemo(
+    () =>
+      trendData.reduce<{ date: string; total: number }[]>((acc, item) => {
+        const prev = acc[acc.length - 1]?.total ?? 0;
+        acc.push({ date: item.date, total: Number((prev + item.amount).toFixed(2)) });
+        return acc;
+      }, []),
+    [trendData]
+  );
 
   const categoryPercentages = useMemo(() => {
+    const total = analyticsTransactions.reduce((sum, t) => sum + t.amount, 0);
     const totals: Record<string, number> = {};
-
-    for (const transaction of analyticsTransactions) {
-      totals[transaction.category] =
-        (totals[transaction.category] || 0) + transaction.amount;
-    }
-
-    const total = analyticsTransactions.reduce(
-      (sum, transaction) => sum + transaction.amount,
-      0
-    );
-
+    for (const t of analyticsTransactions) totals[t.category] = (totals[t.category] ?? 0) + t.amount;
     return Object.entries(totals).map(([category, amount]) => ({
       category,
       percent: total ? Number(((amount / total) * 100).toFixed(1)) : 0,
@@ -663,57 +316,36 @@ function App() {
     if (analyticsTransactions.length === 0) {
       return ["No transactions found for this selected date range."];
     }
-
-    const total = analyticsTransactions.reduce(
-      (sum, transaction) => sum + transaction.amount,
-      0
-    );
-
-    const highestTransaction = [...analyticsTransactions].sort(
-      (a, b) => b.amount - a.amount
-    )[0];
-
-    const totalsByDate: Record<string, number> = {};
-
-    for (const transaction of analyticsTransactions) {
-      const date = new Date(transaction.createdAt).toISOString().split("T")[0];
-
-      totalsByDate[date] =
-        (totalsByDate[date] || 0) + transaction.amount;
+    const total = analyticsTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const highest = [...analyticsTransactions].sort((a, b) => b.amount - a.amount)[0];
+    const byDate: Record<string, number> = {};
+    for (const t of analyticsTransactions) {
+      const date = new Date(t.createdAt).toISOString().split("T")[0];
+      byDate[date] = (byDate[date] ?? 0) + t.amount;
     }
-
-    const highestDay = Object.entries(totalsByDate).sort(
-      (a, b) => b[1] - a[1]
-    )[0];
-
-    const rangeLabel =
-      dateRange === "7d"
-        ? "the last 7 days"
-        : dateRange === "30d"
-        ? "the last 30 days"
-        : "all time";
-
+    const topDay = Object.entries(byDate).sort((a, b) => b[1] - a[1])[0];
+    const rangeLabel = dateRange === "7d" ? "the last 7 days" : dateRange === "30d" ? "the last 30 days" : "all time";
     return [
       `You spent $${total.toFixed(2)} during ${rangeLabel}.`,
-      `Your largest transaction was $${highestTransaction.amount.toFixed(
-        2
-      )} at ${highestTransaction.merchant}.`,
-      `Your highest spending day was ${highestDay[0]} with $${highestDay[1].toFixed(
-        2
-      )}.`,
+      `Your largest transaction was $${highest.amount.toFixed(2)} at ${highest.merchant}.`,
+      `Your highest spending day was ${topDay[0]} with $${topDay[1].toFixed(2)}.`,
     ];
   }, [analyticsTransactions, dateRange]);
 
+  // ── Auth gate ────────────────────────────────────────────────────────────────
+
   if (!token || !user) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} />;
+    return <LoginForm onLoginSuccess={onLoginSuccess} />;
   }
+
+  // ── Routes ───────────────────────────────────────────────────────────────────
 
   return (
     <Routes>
       <Route
         element={
           <ProtectedRoute token={token}>
-            <AppLayout userEmail={user.email} onLogout={handleLogout} />
+            <AppLayout userEmail={user.email} onLogout={logout} />
           </ProtectedRoute>
         }
       >
@@ -735,7 +367,7 @@ function App() {
               budgetStatus={budgetStatus}
               budgetUsedPercent={budgetUsedPercent}
               isSavingBudget={isSavingBudget}
-              saveBudget={saveBudget}
+              saveBudget={handleSaveBudget}
               insights={insights}
             />
           }

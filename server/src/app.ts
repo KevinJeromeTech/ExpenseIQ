@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import express, { Request, Response } from "express";
 import cors from "cors";
+import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
 
 const app = express();
@@ -20,6 +21,16 @@ app.use(
 );
 
 app.use(express.json());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
+
+app.use("/api/auth", authLimiter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ message: "ExpenseIQ backend is running" });

@@ -85,6 +85,33 @@ export const insightsApi = {
     request<InsightsResponse>("/api/insights", "GET", { token }),
 };
 
+export type UserProfile = {
+  id: number;
+  email: string;
+  createdAt: string;
+};
+
+export const usersApi = {
+  getMe: (token: string) =>
+    request<UserProfile>("/api/users/me", "GET", { token }),
+
+  changePassword: (
+    token: string,
+    data: { currentPassword: string; newPassword: string; confirmPassword: string }
+  ) => request<{ message: string }>("/api/users/password", "PUT", { token, body: data }),
+
+  deleteAccount: (token: string, data: { password: string }) =>
+    request<{ message: string }>("/api/users/account", "DELETE", { token, body: data }),
+
+  forgotPassword: (email: string) =>
+    request<{ message: string }>("/api/auth/forgot-password", "POST", { body: { email } }),
+
+  resetPassword: (token: string, password: string) =>
+    request<{ message: string }>("/api/auth/reset-password", "POST", {
+      body: { token, password },
+    }),
+};
+
 export const authApi = {
   login: (email: string, password: string) =>
     request<AuthResponse>("/api/auth/login", "POST", {

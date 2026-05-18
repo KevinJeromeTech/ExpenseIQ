@@ -3,6 +3,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
+import authRouter from "./routes/auth";
+import usersRouter from "./routes/users";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -31,6 +33,8 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter);
+app.use("/api/auth", authRouter);
+app.use("/api/users", usersRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ message: "ExpenseIQ backend is running" });

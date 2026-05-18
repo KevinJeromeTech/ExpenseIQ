@@ -124,6 +124,19 @@ img {
   font-size: 0.93rem;
 }
 
+.auth-forgot-link {
+  align-self: flex-end;
+  font-size: 0.82rem;
+  color: #60a5fa;
+  text-decoration: none;
+  margin-top: -6px;
+  transition: color 0.2s ease;
+}
+
+.auth-forgot-link:hover {
+  color: #93c5fd;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -1540,4 +1553,162 @@ img {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #f1f5f9;
+}
+
+/* =========================
+   SETTINGS PAGE
+========================= */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 680px;
+  padding-top: 8px;
+}
+
+.settings-hero {
+  margin-bottom: 4px;
+}
+
+.settings-title {
+  margin: 4px 0 6px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #f1f5f9;
+}
+
+.settings-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-label {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-value {
+  font-size: 0.95rem;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.settings-section-desc {
+  margin: -8px 0 4px;
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.settings-form input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  outline: none;
+  font: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-form input:focus {
+  border-color: rgba(96, 165, 250, 0.6);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+}
+
+/* Danger Zone */
+
+.danger-zone-card {
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.danger-zone-title {
+  color: #fca5a5 !important;
+}
+
+.danger-button {
+  padding: 11px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  font-weight: 600;
+  font: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.15);
+}
+
+.danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-danger-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* app-nav-user as NavLink */
+.app-nav-user {
+  color: #64748b;
+  font-size: 0.82rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.app-nav-user:hover,
+.app-nav-user.active {
+  color: #94a3b8;
 }

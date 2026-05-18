@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import crypto from "crypto";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -70,6 +71,86 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Login failed" });
+  }
+});
+
+router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  const schema = z.object({
+    email: z.string().email("Invalid email address"),
+  });
+
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message });
+    return;
+  }
+
+  const { email } = result.data;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { resetToken, resetTokenExpiry },
+      });
+
+      const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
+      const resetURL = `${clientURL}/reset-password?token=${resetToken}`;
+
+      // Production: plug in email service via RESEND_API_KEY or SMTP_* env vars
+      // Development / demo: reset link is logged to the server console
+      console.log(`[ExpenseIQ] Password reset for ${email}: ${resetURL}`);
+    }
+
+    // Always 200 — prevents email enumeration
+    res.json({ message: "If that email is registered, a reset link has been sent." });
+  } catch {
+    res.status(500).json({ error: "Failed to process request" });
+  }
+});
+
+router.post("/reset-password", async (req: Request, res: Response): Promise<void> => {
+  const schema = z.object({
+    token: z.string().min(1, "Reset token is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+  });
+
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message });
+    return;
+  }
+
+  const { token, password } = result.data;
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, resetToken: null, resetTokenExpiry: null },
+    });
+
+    res.json({ message: "Password reset successfully. You can now log in." });
+  } catch {
+    res.status(500).json({ error: "Failed to reset password" });
   }
 });
 

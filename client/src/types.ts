@@ -4,6 +4,7 @@ export type Transaction = {
   amount: number;
   category: string;
   createdAt: string;
+  transactionDate?: string;
   updatedAt?: string;
   userId?: number;
   isRecurring?: boolean;
@@ -15,7 +16,7 @@ export type Budget = {
   category: string;
   limit: number;
   month: string;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
   userId?: number;
 };

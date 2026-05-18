@@ -21,12 +21,13 @@ model User {
 }
 
 model Transaction {
-  id        Int      @id @default(autoincrement())
-  merchant  String
-  amount    Float
-  category  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  merchant        String
+  amount          Float
+  category        String
+  createdAt       DateTime @default(now())
+  transactionDate DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   isRecurring Boolean  @default(false)
   frequency   String?

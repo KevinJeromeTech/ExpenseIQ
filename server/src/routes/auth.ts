@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import crypto from "crypto";
+import { sendPasswordResetEmail } from "../lib/mailer";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -99,12 +100,12 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
         data: { resetToken, resetTokenExpiry },
       });
 
-      const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
-      const resetURL = `${clientURL}/reset-password?token=${resetToken}`;
-
-      // Production: plug in email service via RESEND_API_KEY or SMTP_* env vars
-      // Development / demo: reset link is logged to the server console
-      console.log(`[ExpenseIQ] Password reset for ${email}: ${resetURL}`);
+      try {
+        await sendPasswordResetEmail(user.email, resetToken);
+      } catch (emailError) {
+        console.error("Failed to send reset email:", emailError);
+        // Still return 200 — don't expose email failure to client
+      }
     }
 
     // Always 200 — prevents email enumeration

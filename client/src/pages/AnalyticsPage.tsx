@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -10,30 +10,98 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { useAuthContext } from "../contexts/AuthContext";
+import { useTransactions } from "../hooks/useTransactions";
 
 type DateRange = "7d" | "30d" | "all";
 
-type AnalyticsPageProps = {
-  categoryChartData: { category: string; total: number }[];
-  trendData: { date: string; amount: number }[];
-  cumulativeTrendData: { date: string; total: number }[];
-  categoryPercentages: { category: string; percent: number }[];
-  dateRange: DateRange;
-  setDateRange: Dispatch<SetStateAction<DateRange>>;
-  analyticsInsights: string[];
-  isLoading: boolean;
-};
+export default function AnalyticsPage() {
+  const { token, onUnauthorized } = useAuthContext();
+  const { transactions, isLoading } = useTransactions({ token, onUnauthorized });
 
-export default function AnalyticsPage({
-  categoryChartData,
-  trendData,
-  cumulativeTrendData,
-  categoryPercentages,
-  dateRange,
-  setDateRange,
-  analyticsInsights,
-  isLoading,
-}: AnalyticsPageProps) {
+  const [dateRange, setDateRange] = useState<DateRange>("30d");
+
+  const analyticsTransactions = useMemo(() => {
+    if (dateRange === "all") return transactions;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (dateRange === "7d" ? 7 : 30));
+    return transactions.filter(
+      (t) => new Date(t.transactionDate ?? t.createdAt) >= cutoff
+    );
+  }, [transactions, dateRange]);
+
+  const categoryChartData = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const t of analyticsTransactions) {
+      totals[t.category] = (totals[t.category] ?? 0) + t.amount;
+    }
+    return Object.entries(totals).map(([category, total]) => ({ category, total }));
+  }, [analyticsTransactions]);
+
+  const trendData = useMemo(() => {
+    const byDate: Record<string, number> = {};
+    for (const t of analyticsTransactions) {
+      const date = new Date(t.transactionDate ?? t.createdAt)
+        .toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      byDate[date] = (byDate[date] ?? 0) + t.amount;
+    }
+    return Object.entries(byDate)
+      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+      .map(([date, amount]) => ({ date, amount: Math.round(amount * 100) / 100 }));
+  }, [analyticsTransactions]);
+
+  const cumulativeTrendData = useMemo(() => {
+    let running = 0;
+    return trendData.map(({ date, amount }) => {
+      running += amount;
+      return { date, total: Math.round(running * 100) / 100 };
+    });
+  }, [trendData]);
+
+  const categoryPercentages = useMemo(() => {
+    const total = analyticsTransactions.reduce((sum, t) => sum + t.amount, 0);
+    if (total === 0) return [];
+    return categoryChartData
+      .map(({ category, total: catTotal }) => ({
+        category,
+        percent: Math.round((catTotal / total) * 100),
+      }))
+      .sort((a, b) => b.percent - a.percent);
+  }, [analyticsTransactions, categoryChartData]);
+
+  const analyticsInsights = useMemo(() => {
+    const insights: string[] = [];
+    if (analyticsTransactions.length === 0) return insights;
+
+    const total = analyticsTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const avg = total / analyticsTransactions.length;
+    insights.push(`Average transaction: $${avg.toFixed(2)}`);
+
+    if (categoryChartData.length > 0) {
+      const top = [...categoryChartData].sort((a, b) => b.total - a.total)[0];
+      insights.push(
+        `Top category: ${top.category} at $${top.total.toFixed(2)} (${Math.round((top.total / total) * 100)}% of spend)`
+      );
+    }
+
+    const maxTx = analyticsTransactions.reduce(
+      (max, t) => (t.amount > max.amount ? t : max),
+      analyticsTransactions[0]
+    );
+    insights.push(`Largest single purchase: $${maxTx.amount.toFixed(2)} at ${maxTx.merchant}`);
+
+    if (trendData.length >= 2) {
+      const last = trendData[trendData.length - 1].amount;
+      const prev = trendData[trendData.length - 2].amount;
+      const diff = ((last - prev) / Math.max(prev, 0.01)) * 100;
+      insights.push(
+        `Daily spending ${diff >= 0 ? "up" : "down"} ${Math.abs(diff).toFixed(0)}% compared to the previous day.`
+      );
+    }
+
+    return insights;
+  }, [analyticsTransactions, categoryChartData, trendData]);
+
   return (
     <>
       <section className="card">

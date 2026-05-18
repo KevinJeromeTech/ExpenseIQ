@@ -41,10 +41,17 @@ export type CreateTransactionInput = {
   category: string;
   isRecurring?: boolean;
   frequency?: string | null;
-  createdAt?: string;
+  transactionDate?: string;
 };
 
-export type UpdateTransactionInput = Omit<CreateTransactionInput, "createdAt">;
+export type UpdateTransactionInput = {
+  merchant: string;
+  amount: number;
+  category: string;
+  isRecurring?: boolean;
+  frequency?: string | null;
+  transactionDate?: string;
+};
 
 export type CreateBudgetInput = {
   category: string;

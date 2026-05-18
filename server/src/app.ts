@@ -3,6 +3,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
+import authRouter from "./routes/auth";
+import usersRouter from "./routes/users";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -31,6 +33,8 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter);
+app.use("/api/auth", authRouter);
+app.use("/api/users", usersRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ message: "ExpenseIQ backend is running" });
@@ -429,4 +433,31 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
-export default app; 
+app.post(
+  "/api/transactions/bulk-delete",
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const ids: number[] = Array.isArray(req.body?.ids)
+      ? (req.body.ids as unknown[]).map(Number).filter((n) => !isNaN(n))
+      : [];
+
+    if (ids.length === 0) {
+      res.status(400).json({ error: "ids array is required" });
+      return;
+    }
+
+    try {
+      const result = await prisma.transaction.deleteMany({
+        where: { id: { in: ids }, userId },
+      });
+      res.json({ message: `${result.count} transaction(s) deleted` });
+    } catch {
+      res.status(500).json({ error: "Failed to delete transactions" });
+    }
+  }
+);
+
+export default app;

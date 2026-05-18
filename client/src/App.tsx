@@ -14,6 +14,9 @@ import AppLayout from "./components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import SettingsPage from "./pages/SettingsPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 type DateRange = "7d" | "30d" | "all";
 
@@ -37,6 +40,8 @@ function App() {
     createTransaction,
     updateTransaction,
     removeTransaction,
+    bulkDeleteTransactions,
+    isBulkDeleting,
   } = useTransactions({ token, onUnauthorized: handleUnauthorized });
 
   const { savedMonthlyLimit, saveBudget, isSavingBudget } =
@@ -58,6 +63,9 @@ function App() {
   const [sortOption, setSortOption] = useState("newest");
   const [dateRange, setDateRange] = useState<DateRange>("all");
 
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   // Budget form: user's draft input; falls back to server-confirmed value when empty
   const [budgetInputValue, setBudgetInputValue] = useState<number | "">("");
   const monthlyBudget = budgetInputValue !== "" ? budgetInputValue : (savedMonthlyLimit ?? "");
@@ -65,10 +73,37 @@ function App() {
 
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const inInput = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+      if (e.key === "Escape" && editingId !== null && !inInput) {
+        setEditingId(null);
+        setMerchant("");
+        setAmount("");
+        setCategory("Shopping");
+        setRecurring("none");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editingId]);
+
   const handleLogout = useCallback(() => {
     logout();
     queryClient.clear();
   }, [logout, queryClient]);
+
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const resetForm = () => {
     setMerchant("");
@@ -311,13 +346,35 @@ function App() {
     ];
   }, [analyticsTransactions, dateRange]);
 
-  // ── Auth gate ────────────────────────────────────────────────────────────────
+  const merchantSuggestions = useMemo(
+    () => [...new Set(transactions.map((t) => t.merchant))].sort(),
+    [transactions]
+  );
 
-  if (!token || !user) {
-    return <LoginForm onLoginSuccess={onLoginSuccess} />;
-  }
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} transaction(s)?`)) return;
+    try {
+      await bulkDeleteTransactions([...selectedIds]);
+      clearSelection();
+      toast.success(`${selectedIds.size} transaction(s) deleted.`);
+    } catch {
+      // error toast shown in useTransactions
+    }
+  }, [selectedIds, bulkDeleteTransactions, clearSelection]);
 
   // ── Routes ───────────────────────────────────────────────────────────────────
+
+  // Public routes (password reset) must be accessible before auth
+  if (!token || !user) {
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="*" element={<LoginForm onLoginSuccess={onLoginSuccess} />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
@@ -380,6 +437,12 @@ function App() {
               filteredTransactions={filteredTransactions}
               startEditing={startEditing}
               deleteTransaction={deleteTransaction}
+              selectedIds={selectedIds}
+              toggleSelected={toggleSelected}
+              clearSelection={clearSelection}
+              handleBulkDelete={handleBulkDelete}
+              isBulkDeleting={isBulkDeleting}
+              merchantSuggestions={merchantSuggestions}
             />
           }
         />
@@ -396,6 +459,17 @@ function App() {
               setDateRange={setDateRange}
               analyticsInsights={analyticsInsights}
               isLoading={isLoadingTransactions}
+            />
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <SettingsPage
+              token={token}
+              user={user}
+              onDeleteSuccess={handleLogout}
             />
           }
         />

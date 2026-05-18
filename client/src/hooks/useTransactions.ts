@@ -61,6 +61,12 @@ export function useTransactions({ token, onUnauthorized }: Options) {
     onError: handleError,
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => transactionsApi.bulkDelete(token!, ids),
+    onSuccess: invalidateAll,
+    onError: handleError,
+  });
+
   return {
     transactions,
     isLoading,
@@ -72,5 +78,7 @@ export function useTransactions({ token, onUnauthorized }: Options) {
     updateTransaction: (id: number, data: UpdateTransactionInput) =>
       updateMutation.mutateAsync({ id, data }),
     removeTransaction: deleteMutation.mutateAsync,
+    bulkDeleteTransactions: bulkDeleteMutation.mutateAsync,
+    isBulkDeleting: bulkDeleteMutation.isPending,
   };
 }

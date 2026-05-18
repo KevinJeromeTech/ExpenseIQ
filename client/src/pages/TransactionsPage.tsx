@@ -25,6 +25,12 @@ type TransactionsPageProps = {
   filteredTransactions?: Transaction[];
   startEditing: (transaction: Transaction) => void;
   deleteTransaction: (id: number) => Promise<void>;
+  selectedIds: Set<number>;
+  toggleSelected: (id: number) => void;
+  clearSelection: () => void;
+  handleBulkDelete: () => Promise<void>;
+  isBulkDeleting: boolean;
+  merchantSuggestions: string[];
 };
 
 export default function TransactionsPage({
@@ -52,7 +58,24 @@ export default function TransactionsPage({
   filteredTransactions = [],
   startEditing,
   deleteTransaction,
+  selectedIds,
+  toggleSelected,
+  clearSelection,
+  handleBulkDelete,
+  isBulkDeleting,
+  merchantSuggestions,
 }: TransactionsPageProps) {
+  const allIds = filteredTransactions.map((t) => t.id);
+  const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      clearSelection();
+    } else {
+      allIds.forEach(toggleSelected);
+    }
+  };
+
   return (
     <section className="content-grid">
       <div className="card">
@@ -63,10 +86,16 @@ export default function TransactionsPage({
             Merchant
             <input
               type="text"
+              list="merchant-suggestions"
               placeholder="Enter merchant name"
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
             />
+            <datalist id="merchant-suggestions">
+              {merchantSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </label>
 
           <label>
@@ -155,6 +184,17 @@ export default function TransactionsPage({
         </div>
 
         <div className="filter-row">
+          <label className="bulk-checkbox-label">
+            <input
+              type="checkbox"
+              className="row-checkbox"
+              checked={isAllSelected}
+              onChange={toggleSelectAll}
+              disabled={isLoading || filteredTransactions.length === 0}
+            />
+            All
+          </label>
+
           <select
             className="filter-select"
             value={selectedCategory}
@@ -191,6 +231,23 @@ export default function TransactionsPage({
           />
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="bulk-action-bar">
+            <span className="bulk-count">{selectedIds.size} selected</span>
+            <button
+              type="button"
+              className="delete-button"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? "Deleting…" : "Delete Selected"}
+            </button>
+            <button type="button" className="cancel-button" onClick={clearSelection}>
+              Clear
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="transactions-list">
             {[...Array(5)].map((_, i) => (
@@ -208,8 +265,20 @@ export default function TransactionsPage({
         ) : (
           <div className="transactions-list">
             {filteredTransactions.map((t) => (
-              <div key={t.id} className="transaction-row">
-                <div>
+              <div
+                key={t.id}
+                className={`transaction-row${selectedIds.has(t.id) ? " selected" : ""}`}
+              >
+                <label className="bulk-checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="row-checkbox"
+                    checked={selectedIds.has(t.id)}
+                    onChange={() => toggleSelected(t.id)}
+                  />
+                </label>
+
+                <div style={{ flex: 1 }}>
                   <p className="merchant">{t.merchant}</p>
                   <p className="category-badge" data-category={t.category}>{t.category}</p>
                   <p className="transaction-date">

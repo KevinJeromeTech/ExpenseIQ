@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import logo from "../assets/logoiq.png";
 import { authApi } from "../services/api";
@@ -97,6 +98,12 @@ export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
           </label>
 
           {error && <p className="auth-error">{error}</p>}
+
+          {mode === "login" && (
+            <Link to="/forgot-password" className="auth-forgot-link">
+              Forgot password?
+            </Link>
+          )}
 
           <button type="submit" className="primary-button" disabled={isLoading}>
             {isLoading

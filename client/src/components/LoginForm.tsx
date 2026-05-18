@@ -57,14 +57,16 @@ export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
       <div className="auth-card">
         <img src={logo} alt="ExpenseIQ logo" className="login-logo" />
 
+        <p className="auth-eyebrow">Personal Finance Dashboard</p>
+
         <h1 className="auth-title">
-          {mode === "login" ? "Welcome to ExpenseIQ" : "Create your account"}
+          {mode === "login" ? "Welcome back" : "Create your account"}
         </h1>
 
         <p className="auth-subtitle">
           {mode === "login"
-            ? "Sign in to access your personal expense dashboard."
-            : "Create an account to start tracking your budget and spending."}
+            ? "Sign in to access your expense dashboard."
+            : "Start tracking your budget and spending in minutes."}
         </p>
 
         <form onSubmit={handleAuth} className="auth-form" autoComplete="off">

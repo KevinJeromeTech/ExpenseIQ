@@ -40,39 +40,88 @@ img {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  background:
+    radial-gradient(ellipse at 25% 60%, rgba(59, 130, 246, 0.1), transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.07), transparent 45%);
 }
 
 .auth-logo {
-  width: 80px;
-  height: auto;
-  margin-bottom: 16px;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.35));
+}
+
+.login-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4));
+  transition: filter 0.3s ease;
+}
+
+.login-logo:hover {
+  filter: drop-shadow(0 0 28px rgba(255, 215, 0, 0.6));
 }
 
 .auth-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
-  background: rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 20px;
-  padding: 28px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 18, 37, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+  padding: 44px 36px 36px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 60px;
+  right: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.5), transparent);
+}
+
+.auth-eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #60a5fa;
 }
 
 .auth-title {
-  margin-top: 4px;
-  font-size: 2rem;
+  margin: 0 0 8px;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   text-align: center;
+  background: linear-gradient(135deg, #f1f5f9 0%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .auth-subtitle {
-  margin-bottom: 20px;
-  color: #cbd5e1;
+  margin-bottom: 28px;
+  color: #64748b;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: 0.93rem;
 }
 
 .auth-form {
@@ -98,12 +147,17 @@ img {
 .search-input,
 .budget-input-group input {
   width: 100%;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid #334155;
-  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.65);
   color: #f8fafc;
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-form input::placeholder {
+  color: #475569;
 }
 
 .auth-form input:focus,
@@ -112,8 +166,8 @@ img {
 .filter-select:focus,
 .search-input:focus,
 .budget-input-group input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.6);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12), 0 0 14px rgba(96, 165, 250, 0.08);
 }
 
 .auth-error {
@@ -125,19 +179,20 @@ img {
 .auth-switch-button {
   margin-top: 14px;
   width: 100%;
-  border: 1px solid #334155;
+  border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 12px;
   padding: 12px 16px;
-  background: transparent;
-  color: #cbd5e1;
-  font-weight: 600;
+  background: rgba(255, 255, 255, 0.03);
+  color: #64748b;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .auth-switch-button:hover {
-  background: rgba(148, 163, 184, 0.08);
-  border-color: #475569;
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
 }
 
 .dashboard {

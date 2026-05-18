@@ -8,6 +8,8 @@ export type Transaction = {
   userId?: number;
   isRecurring?: boolean;
   frequency?: string | null;
+  notes?: string | null;
+  type?: string;
 };
 
 export type Budget = {

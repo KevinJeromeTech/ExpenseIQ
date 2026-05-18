@@ -64,7 +64,7 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
 app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { merchant, amount, category, createdAt } = req.body ?? {};
+    const { merchant, amount, category, createdAt, notes, type, isRecurring, frequency } = req.body ?? {};
 
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -85,6 +85,10 @@ app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Respon
         category,
         userId,
         createdAt: createdAt ? new Date(createdAt) : new Date(),
+        notes: notes ?? null,
+        type: type ?? "expense",
+        isRecurring: isRecurring ?? false,
+        frequency: frequency ?? null,
       },
     });
 
@@ -102,7 +106,7 @@ app.put(
     try {
       const userId = req.user?.userId;
       const id = Number(req.params.id);
-      const { merchant, amount, category } = req.body ?? {};
+      const { merchant, amount, category, notes, type, isRecurring, frequency } = req.body ?? {};
 
       if (!userId) {
         res.status(401).json({ error: "Unauthorized" });
@@ -131,6 +135,10 @@ app.put(
           merchant,
           amount: Number(amount),
           category,
+          notes: notes ?? null,
+          type: type ?? "expense",
+          isRecurring: isRecurring ?? existingTransaction.isRecurring,
+          frequency: frequency ?? existingTransaction.frequency,
         },
       });
 

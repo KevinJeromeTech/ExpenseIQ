@@ -433,4 +433,31 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
-export default app; 
+app.post(
+  "/api/transactions/bulk-delete",
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const ids: number[] = Array.isArray(req.body?.ids)
+      ? (req.body.ids as unknown[]).map(Number).filter((n) => !isNaN(n))
+      : [];
+
+    if (ids.length === 0) {
+      res.status(400).json({ error: "ids array is required" });
+      return;
+    }
+
+    try {
+      const result = await prisma.transaction.deleteMany({
+        where: { id: { in: ids }, userId },
+      });
+      res.json({ message: `${result.count} transaction(s) deleted` });
+    } catch {
+      res.status(500).json({ error: "Failed to delete transactions" });
+    }
+  }
+);
+
+export default app;

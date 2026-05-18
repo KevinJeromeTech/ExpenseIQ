@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import logo from "../assets/logoiq.png";
+import { useTheme } from "../hooks/useTheme";
 
 type AppLayoutProps = {
   userEmail: string;
@@ -7,6 +8,7 @@ type AppLayoutProps = {
 };
 
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
+  const { theme, toggle } = useTheme();
   return (
     <main className="dashboard">
       <header className="app-nav">
@@ -29,6 +31,14 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
           <NavLink to="/settings" className="app-nav-user" title="Account settings">
             {userEmail}
           </NavLink>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggle}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
           <button type="button" className="cancel-button" onClick={onLogout}>
             Logout
           </button>

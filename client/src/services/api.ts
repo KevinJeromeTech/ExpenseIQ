@@ -70,6 +70,12 @@ export const transactionsApi = {
 
   remove: (token: string, id: number) =>
     request<{ message: string }>(`/api/transactions/${id}`, "DELETE", { token }),
+
+  bulkDelete: (token: string, ids: number[]) =>
+    request<{ message: string }>("/api/transactions/bulk-delete", "POST", {
+      token,
+      body: { ids },
+    }),
 };
 
 export const budgetsApi = {

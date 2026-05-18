@@ -346,6 +346,72 @@ function App() {
     ];
   }, [analyticsTransactions, dateRange]);
 
+  const merchantFrequency = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    for (const t of analyticsTransactions) {
+      if (!map[t.merchant]) map[t.merchant] = { count: 0, total: 0 };
+      map[t.merchant].count++;
+      map[t.merchant].total = Number((map[t.merchant].total + t.amount).toFixed(2));
+    }
+    return Object.entries(map)
+      .map(([merchant, { count, total }]) => ({ merchant, count, total }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [analyticsTransactions]);
+
+  const heatmapData = useMemo(() => {
+    const byDate: Record<string, number> = {};
+    for (const t of transactions) {
+      const date = new Date(t.createdAt).toISOString().split("T")[0];
+      byDate[date] = (byDate[date] ?? 0) + t.amount;
+    }
+    const days: { date: string; amount: number }[] = [];
+    const today = new Date();
+    for (let i = 83; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      days.push({ date: dateStr, amount: Number((byDate[dateStr] ?? 0).toFixed(2)) });
+    }
+    return days;
+  }, [transactions]);
+
+  const categoryTrendData = useMemo(() => {
+    const categories = [...new Set(analyticsTransactions.map((t) => t.category))];
+    const byDate: Record<string, Record<string, number>> = {};
+    for (const t of analyticsTransactions) {
+      const date = new Date(t.createdAt).toISOString().split("T")[0];
+      byDate[date] = byDate[date] ?? {};
+      byDate[date][t.category] = Number(((byDate[date][t.category] ?? 0) + t.amount).toFixed(2));
+    }
+    const data = Object.entries(byDate)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, cats]) => ({ date, ...cats }));
+    return { data, categories };
+  }, [analyticsTransactions]);
+
+  const unusualSpendAlerts = useMemo(() => {
+    const now = new Date();
+    const cutoff7 = new Date(now); cutoff7.setDate(now.getDate() - 7);
+    const cutoff37 = new Date(now); cutoff37.setDate(now.getDate() - 37);
+    const recent: Record<string, number> = {};
+    const prior: Record<string, number> = {};
+    for (const t of transactions) {
+      const d = new Date(t.createdAt);
+      if (d >= cutoff7) recent[t.category] = (recent[t.category] ?? 0) + t.amount;
+      else if (d >= cutoff37) prior[t.category] = (prior[t.category] ?? 0) + t.amount;
+    }
+    return Object.entries(recent)
+      .flatMap(([cat, recentTotal]) => {
+        const priorTotal = prior[cat];
+        if (!priorTotal) return [];
+        const ratio = (recentTotal / 7) / (priorTotal / 30);
+        if (ratio < 1.5) return [];
+        return [{ category: cat, recentTotal: Number(recentTotal.toFixed(2)), baseline: Number((priorTotal / 30 * 7).toFixed(2)), ratio: Number(ratio.toFixed(1)) }];
+      })
+      .sort((a, b) => b.ratio - a.ratio);
+  }, [transactions]);
+
   const merchantSuggestions = useMemo(
     () => [...new Set(transactions.map((t) => t.merchant))].sort(),
     [transactions]
@@ -459,6 +525,10 @@ function App() {
               setDateRange={setDateRange}
               analyticsInsights={analyticsInsights}
               isLoading={isLoadingTransactions}
+              merchantFrequency={merchantFrequency}
+              heatmapData={heatmapData}
+              categoryTrendData={categoryTrendData}
+              unusualSpendAlerts={unusualSpendAlerts}
             />
           }
         />

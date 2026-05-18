@@ -9,6 +9,10 @@ type TransactionsPageProps = {
   setCategory: React.Dispatch<React.SetStateAction<string>>;
   recurring: string;
   setRecurring: React.Dispatch<React.SetStateAction<string>>;
+  notes: string;
+  setNotes: React.Dispatch<React.SetStateAction<string>>;
+  txType: "expense" | "income";
+  setTxType: React.Dispatch<React.SetStateAction<"expense" | "income">>;
   editingId: number | null;
   setEditingId: React.Dispatch<React.SetStateAction<number | null>>;
   selectedCategory: string;
@@ -22,6 +26,7 @@ type TransactionsPageProps = {
   addTransaction: (e: React.FormEvent) => Promise<void>;
   seedDemoTransactions: () => Promise<void>;
   exportTransactionsCSV: () => void;
+  importCSV: (file: File) => Promise<void>;
   filteredTransactions?: Transaction[];
   startEditing: (transaction: Transaction) => void;
   deleteTransaction: (id: number) => Promise<void>;
@@ -42,6 +47,10 @@ export default function TransactionsPage({
   setCategory,
   recurring,
   setRecurring,
+  notes,
+  setNotes,
+  txType,
+  setTxType,
   editingId,
   setEditingId,
   selectedCategory,
@@ -55,6 +64,7 @@ export default function TransactionsPage({
   addTransaction,
   seedDemoTransactions,
   exportTransactionsCSV,
+  importCSV,
   filteredTransactions = [],
   startEditing,
   deleteTransaction,
@@ -82,6 +92,23 @@ export default function TransactionsPage({
         <h3>{editingId !== null ? "Edit Transaction" : "Add Transaction"}</h3>
 
         <form className="transaction-form" onSubmit={addTransaction}>
+          <div className="type-toggle">
+            <button
+              type="button"
+              className={`type-btn ${txType === "expense" ? "type-btn-expense active" : ""}`}
+              onClick={() => setTxType("expense")}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              className={`type-btn ${txType === "income" ? "type-btn-income active" : ""}`}
+              onClick={() => setTxType("income")}
+            >
+              Income
+            </button>
+          </div>
+
           <label>
             Merchant
             <input
@@ -130,6 +157,17 @@ export default function TransactionsPage({
             </select>
           </label>
 
+          <label>
+            Notes (optional)
+            <textarea
+              className="notes-input"
+              placeholder="Add a note..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+          </label>
+
           <button
             type="submit"
             className={`primary-button ${editingId !== null ? "edit-mode" : ""}`}
@@ -175,6 +213,19 @@ export default function TransactionsPage({
           >
             Export CSV
           </button>
+
+          <label className="csv-import-label">
+            Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              className="csv-import-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) { void importCSV(file); e.target.value = ""; }
+              }}
+            />
+          </label>
         </form>
       </div>
 
@@ -279,7 +330,10 @@ export default function TransactionsPage({
                 </label>
 
                 <div style={{ flex: 1 }}>
-                  <p className="merchant">{t.merchant}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <p className="merchant">{t.merchant}</p>
+                    {t.type === "income" && <span className="income-badge">Income</span>}
+                  </div>
                   <p className="category-badge" data-category={t.category}>{t.category}</p>
                   <p className="transaction-date">
                     {new Date(t.createdAt).toLocaleDateString("en-US", {
@@ -288,13 +342,16 @@ export default function TransactionsPage({
                       year: "numeric",
                     })}
                   </p>
+                  {t.notes && <p className="transaction-notes">{t.notes}</p>}
                   {t.isRecurring && (
                     <p className="recurring-badge">🔁 {t.frequency}</p>
                   )}
                 </div>
 
                 <div className="transaction-actions">
-                  <p className="amount">${t.amount.toFixed(2)}</p>
+                  <p className={`amount ${t.type === "income" ? "income-amount" : ""}`}>
+                    {t.type === "income" ? "+" : ""}${t.amount.toFixed(2)}
+                  </p>
 
                   <button
                     type="button"

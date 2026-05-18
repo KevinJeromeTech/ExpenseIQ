@@ -1,4 +1,7 @@
 import type { Insight, Transaction } from "../types";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 
 type MonthlyReport = {
   totalSpent: number;
@@ -9,9 +12,18 @@ type MonthlyReport = {
   budgetStatus: string;
 };
 
+type MonthlyComparison = {
+  thisTotal: number;
+  prevTotal: number;
+  change: number;
+  categories: { category: string; thisMonth: number; prevMonth: number }[];
+};
+
 type DashboardPageProps = {
   userEmail: string;
   totalSpent: number;
+  totalIncome: number;
+  netBalance: number;
   transactions: Transaction[];
   topCategory: string;
   monthlyReport: MonthlyReport;
@@ -24,11 +36,14 @@ type DashboardPageProps = {
   isSavingBudget: boolean;
   saveBudget: () => Promise<void>;
   insights: Insight[];
+  monthlyComparison: MonthlyComparison;
 };
 
 export default function DashboardPage({
   userEmail,
   totalSpent,
+  totalIncome,
+  netBalance,
   transactions,
   topCategory,
   monthlyReport,
@@ -41,9 +56,10 @@ export default function DashboardPage({
   isSavingBudget,
   saveBudget,
   insights,
+  monthlyComparison,
 }: DashboardPageProps) {
-  const averageTransaction =
-    transactions.length > 0 ? totalSpent / transactions.length : 0;
+  const expenseCount = transactions.filter((t) => t.type !== "income").length;
+  const averageTransaction = expenseCount > 0 ? totalSpent / expenseCount : 0;
 
   return (
     <>
@@ -59,15 +75,23 @@ export default function DashboardPage({
 
       <section className="stats-grid">
         <div className="stat-card">
-          <p className="stat-label">Total Spent</p>
-          <h2 className="stat-value">${totalSpent.toFixed(2)}</h2>
-          <p className="stat-sub">This month</p>
+          <p className="stat-label">Total Expenses</p>
+          <h2 className="stat-value expense-value">${totalSpent.toFixed(2)}</h2>
+          <p className="stat-sub">All time</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Transactions</p>
-          <h2 className="stat-value">{transactions.length}</h2>
-          <p className="stat-sub">Recorded</p>
+          <p className="stat-label">Total Income</p>
+          <h2 className="stat-value income-value">${totalIncome.toFixed(2)}</h2>
+          <p className="stat-sub">All time</p>
+        </div>
+
+        <div className="stat-card">
+          <p className="stat-label">Net Balance</p>
+          <h2 className={`stat-value ${netBalance >= 0 ? "income-value" : "expense-value"}`}>
+            {netBalance >= 0 ? "+" : ""}${netBalance.toFixed(2)}
+          </h2>
+          <p className="stat-sub">Income − Expenses</p>
         </div>
 
         <div className="stat-card">
@@ -199,6 +223,48 @@ export default function DashboardPage({
         <p className="budget-caption">
           {budgetUsedPercent.toFixed(1)}% of monthly budget used
         </p>
+      </section>
+
+      <section className="card chart-card">
+        <div className="section-header">
+          <p className="eyebrow">Month over Month</p>
+          <h3>
+            Monthly Comparison{" "}
+            <span className={`change-badge ${monthlyComparison.change > 0 ? "danger" : "positive"}`}>
+              {monthlyComparison.change > 0 ? "+" : ""}
+              {monthlyComparison.change}%
+            </span>
+          </h3>
+        </div>
+        <div className="comparison-summary">
+          <div className="comparison-item">
+            <span>This month</span>
+            <strong>${monthlyComparison.thisTotal.toFixed(2)}</strong>
+          </div>
+          <div className="comparison-item">
+            <span>Last month</span>
+            <strong>${monthlyComparison.prevTotal.toFixed(2)}</strong>
+          </div>
+        </div>
+        {monthlyComparison.categories.length > 0 && (
+          <div className="chart-wrapper" style={{ marginTop: "16px" }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={monthlyComparison.categories} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" horizontal={false} />
+                <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                <YAxis type="category" dataKey="category" tick={{ fill: "#94a3b8", fontSize: 11 }} width={80} />
+                <Tooltip
+                  contentStyle={{ background: "var(--surface-nav)", border: "1px solid var(--border)", borderRadius: "8px" }}
+                  labelStyle={{ color: "var(--text)" }}
+                  formatter={(v) => [`$${(v as number).toFixed(2)}`]}
+                />
+                <Legend />
+                <Bar dataKey="thisMonth" name="This Month" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="prevMonth" name="Last Month" fill="rgba(148,163,184,0.35)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       <section className="card insights-card">

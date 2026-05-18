@@ -55,6 +55,8 @@ function App() {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Shopping");
   const [recurring, setRecurring] = useState("none");
+  const [notes, setNotes] = useState("");
+  const [txType, setTxType] = useState<"expense" | "income">("expense");
   const [editingId, setEditingId] = useState<number | null>(null);
 
   // Filter / sort state
@@ -83,6 +85,8 @@ function App() {
         setAmount("");
         setCategory("Shopping");
         setRecurring("none");
+        setNotes("");
+        setTxType("expense");
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -110,6 +114,8 @@ function App() {
     setAmount("");
     setCategory("Shopping");
     setRecurring("none");
+    setNotes("");
+    setTxType("expense");
     setEditingId(null);
   };
 
@@ -157,6 +163,8 @@ function App() {
       category,
       isRecurring: recurring !== "none",
       frequency: recurring !== "none" ? recurring : null,
+      notes: notes.trim() || null,
+      type: txType,
     };
 
     try {
@@ -189,6 +197,8 @@ function App() {
     setAmount(t.amount.toString());
     setCategory(t.category);
     setRecurring(t.isRecurring ? (t.frequency ?? "none") : "none");
+    setNotes(t.notes ?? "");
+    setTxType((t.type ?? "expense") as "expense" | "income");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -229,12 +239,54 @@ function App() {
     toast.success("CSV exported!");
   };
 
+  const importCSV = useCallback(async (file: File) => {
+    const text = await file.text();
+    const lines = text.trim().split("\n");
+    if (lines.length < 2) { toast.error("CSV has no data rows."); return; }
+    const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim().toLowerCase());
+    const mIdx = headers.indexOf("merchant");
+    const aIdx = headers.indexOf("amount");
+    const cIdx = headers.indexOf("category");
+    const dIdx = headers.indexOf("date");
+    const nIdx = headers.indexOf("notes");
+    const tIdx = headers.indexOf("type");
+    if (mIdx === -1 || aIdx === -1 || cIdx === -1) {
+      toast.error("CSV must have Merchant, Amount, and Category columns.");
+      return;
+    }
+    const rows = lines.slice(1).map((line) => line.split(",").map((v) => v.replace(/"/g, "").trim()));
+    let created = 0;
+    for (const row of rows) {
+      const merchant = row[mIdx];
+      const amount = Number(row[aIdx]);
+      const category = row[cIdx];
+      if (!merchant || isNaN(amount) || amount <= 0 || !category) continue;
+      try {
+        await createTransaction({
+          merchant, amount, category,
+          createdAt: dIdx !== -1 && row[dIdx] ? new Date(row[dIdx]).toISOString() : undefined,
+          notes: nIdx !== -1 ? row[nIdx] || null : null,
+          type: tIdx !== -1 && row[tIdx] === "income" ? "income" : "expense",
+        });
+        created++;
+      } catch { /* skip bad rows */ }
+    }
+    toast.success(`Imported ${created} transaction(s).`);
+  }, [createTransaction]);
+
   // ── Derived state ────────────────────────────────────────────────────────────
 
   const totalSpent = useMemo(
-    () => transactions.reduce((sum, t) => sum + t.amount, 0),
+    () => transactions.filter((t) => t.type !== "income").reduce((sum, t) => sum + t.amount, 0),
     [transactions]
   );
+
+  const totalIncome = useMemo(
+    () => transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0),
+    [transactions]
+  );
+
+  const netBalance = useMemo(() => totalIncome - totalSpent, [totalIncome, totalSpent]);
 
   const budgetAmount = useMemo(() => savedMonthlyLimit ?? 0, [savedMonthlyLimit]);
   const remainingBudget = useMemo(() => budgetAmount - totalSpent, [budgetAmount, totalSpent]);
@@ -265,6 +317,40 @@ function App() {
     const largest = [...transactions].sort((a, b) => b.amount - a.amount)[0];
     return { totalSpent, transactionCount: transactions.length, topCategory, largestPurchase: largest.merchant, largestAmount: largest.amount, budgetStatus };
   }, [transactions, totalSpent, topCategory, budgetStatus]);
+
+  const monthlyComparison = useMemo(() => {
+    const now = new Date();
+    const thisMonthStr = now.toISOString().slice(0, 7);
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthStr = prevDate.toISOString().slice(0, 7);
+    const thisMonth = transactions.filter(
+      (t) => t.type !== "income" && t.createdAt.startsWith(thisMonthStr)
+    );
+    const prevMonth = transactions.filter(
+      (t) => t.type !== "income" && t.createdAt.startsWith(prevMonthStr)
+    );
+    const thisTotal = thisMonth.reduce((s, t) => s + t.amount, 0);
+    const prevTotal = prevMonth.reduce((s, t) => s + t.amount, 0);
+    const change = prevTotal ? ((thisTotal - prevTotal) / prevTotal) * 100 : 0;
+    const byCategory = (txs: Transaction[]) => {
+      const totals: Record<string, number> = {};
+      for (const t of txs) totals[t.category] = (totals[t.category] ?? 0) + t.amount;
+      return totals;
+    };
+    const thisCategories = byCategory(thisMonth);
+    const prevCategories = byCategory(prevMonth);
+    const categories = [...new Set([...Object.keys(thisCategories), ...Object.keys(prevCategories)])];
+    return {
+      thisTotal: Number(thisTotal.toFixed(2)),
+      prevTotal: Number(prevTotal.toFixed(2)),
+      change: Number(change.toFixed(1)),
+      categories: categories.map((cat) => ({
+        category: cat,
+        thisMonth: Number((thisCategories[cat] ?? 0).toFixed(2)),
+        prevMonth: Number((prevCategories[cat] ?? 0).toFixed(2)),
+      })),
+    };
+  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     const result = transactions.filter(
@@ -459,6 +545,8 @@ function App() {
             <DashboardPage
               userEmail={user.email}
               totalSpent={totalSpent}
+              totalIncome={totalIncome}
+              netBalance={netBalance}
               transactions={transactions}
               topCategory={topCategory}
               monthlyReport={monthlyReport}
@@ -471,6 +559,7 @@ function App() {
               isSavingBudget={isSavingBudget}
               saveBudget={handleSaveBudget}
               insights={insights}
+              monthlyComparison={monthlyComparison}
             />
           }
         />
@@ -495,6 +584,11 @@ function App() {
               setSortOption={setSortOption}
               recurring={recurring}
               setRecurring={setRecurring}
+              notes={notes}
+              setNotes={setNotes}
+              txType={txType}
+              setTxType={setTxType}
+              importCSV={importCSV}
               isSavingTransaction={isSaving}
               isLoading={isLoadingTransactions}
               addTransaction={addTransaction}

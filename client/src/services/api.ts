@@ -42,6 +42,8 @@ export type CreateTransactionInput = {
   isRecurring?: boolean;
   frequency?: string | null;
   createdAt?: string;
+  notes?: string | null;
+  type?: string;
 };
 
 export type UpdateTransactionInput = Omit<CreateTransactionInput, "createdAt">;

@@ -434,9 +434,10 @@ img {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(420px, 1.2fr) minmax(340px, 0.8fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 18px;
   margin-bottom: 22px;
+  min-width: 0;
 }
 
 .bottom-grid {
@@ -741,8 +742,10 @@ img {
 
 .filter-row {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 .filter-select {

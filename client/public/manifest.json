@@ -1,0 +1,12 @@
+{
+  "name": "ExpenseIQ",
+  "short_name": "ExpenseIQ",
+  "description": "Personal finance dashboard for tracking spending and budgets",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#D4AF37",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

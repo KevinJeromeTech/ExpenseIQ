@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import express, { Request, Response } from "express";
+import { randomBytes } from "crypto";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
@@ -133,7 +134,7 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
 app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { merchant, amount, category, isRecurring, frequency, transactionDate, notes } = req.body ?? {};
+    const { merchant, amount, category, isRecurring, frequency, transactionDate, notes, type } = req.body ?? {};
 
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -157,6 +158,7 @@ app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Respon
         isRecurring: isRecurring ?? false,
         frequency: frequency ?? null,
         notes: notes ?? null,
+        type: type === "income" ? "income" : "expense",
       },
     });
 
@@ -174,7 +176,7 @@ app.put(
     try {
       const userId = req.user?.userId;
       const id = Number(req.params.id);
-      const { merchant, amount, category, isRecurring, frequency, transactionDate, notes } = req.body ?? {};
+      const { merchant, amount, category, isRecurring, frequency, transactionDate, notes, type } = req.body ?? {};
 
       if (!userId) {
         res.status(401).json({ error: "Unauthorized" });
@@ -207,6 +209,7 @@ app.put(
           frequency: frequency ?? null,
           transactionDate: transactionDate ? new Date(transactionDate) : undefined,
           notes: notes ?? null,
+          type: type === "income" ? "income" : "expense",
         },
       });
 
@@ -523,25 +526,24 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
-const DEFAULT_CATEGORIES = ["Shopping", "Food", "Transport", "Bills", "Entertainment"];
+const DEFAULT_EXPENSE_CATEGORIES = ["Shopping", "Food", "Transport", "Bills", "Entertainment"];
+const DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Investment", "Gift", "Other Income"];
+const ALL_DEFAULT_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
 
 app.get("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    let categories = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
-    if (categories.length === 0) {
+    let cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    if (cats.length === 0) {
       await prisma.category.createMany({
-        data: DEFAULT_CATEGORIES.map((name) => ({ name, userId })),
+        data: ALL_DEFAULT_CATEGORIES.map(name => ({ name, userId })),
         skipDuplicates: true,
       });
-      categories = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+      cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
     }
-    res.json(categories);
-  } catch (error) {
-    console.error("Failed to fetch categories:", error);
-    res.status(500).json({ error: "Failed to fetch categories" });
-  }
+    res.json(cats);
+  } catch { res.status(500).json({ error: "Failed to fetch categories" }); }
 });
 
 app.post("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
@@ -577,6 +579,49 @@ app.delete("/api/categories/:id", authenticate, async (req: AuthRequest & Reques
   } catch {
     res.status(500).json({ error: "Failed to delete category" });
   }
+});
+
+app.post("/api/share/generate", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const token = randomBytes(16).toString("hex");
+    await prisma.user.update({ where: { id: userId }, data: { shareToken: token } });
+    res.json({ token });
+  } catch { res.status(500).json({ error: "Failed to generate share link" }); }
+});
+
+app.get("/api/share/:token", async (req: Request<{ token: string }>, res: Response) => {
+  const { token } = req.params;
+  try {
+    const user = await prisma.user.findUnique({ where: { shareToken: token } });
+    if (!user) { res.status(404).json({ error: "Share link not found" }); return; }
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: user.id },
+      orderBy: { transactionDate: "desc" },
+      take: 100,
+    });
+    const budgets = await prisma.budget.findMany({ where: { userId: user.id } });
+    const totalExpenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    const totalIncome = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    res.json({
+      totalExpenses,
+      totalIncome,
+      netIncome: totalIncome - totalExpenses,
+      transactionCount: transactions.length,
+      budgets,
+      recentTransactions: transactions.slice(0, 10),
+    });
+  } catch { res.status(500).json({ error: "Failed to load share data" }); }
+});
+
+app.delete("/api/share", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { shareToken: null } });
+    res.json({ message: "Share link revoked" });
+  } catch { res.status(500).json({ error: "Failed to revoke share link" }); }
 });
 
 app.post(

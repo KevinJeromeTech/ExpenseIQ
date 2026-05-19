@@ -1,4 +1,4 @@
-import type { Transaction, Budget, InsightsResponse } from "../types";
+import type { Transaction, Budget, InsightsResponse, Category, ShareSnapshot } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -42,6 +42,8 @@ export type CreateTransactionInput = {
   isRecurring?: boolean;
   frequency?: string | null;
   transactionDate?: string;
+  notes?: string | null;
+  type?: "expense" | "income";
 };
 
 export type UpdateTransactionInput = {
@@ -51,6 +53,8 @@ export type UpdateTransactionInput = {
   isRecurring?: boolean;
   frequency?: string | null;
   transactionDate?: string;
+  notes?: string | null;
+  type?: "expense" | "income";
 };
 
 export type CreateBudgetInput = {
@@ -123,6 +127,18 @@ export const usersApi = {
     request<{ message: string }>("/api/auth/reset-password", "POST", {
       body: { token, password },
     }),
+};
+
+export const categoriesApi = {
+  getAll: (token: string) => request<Category[]>("/api/categories", "GET", { token }),
+  create: (token: string, name: string) => request<Category>("/api/categories", "POST", { token, body: { name } }),
+  remove: (token: string, id: number) => request<{ message: string }>(`/api/categories/${id}`, "DELETE", { token }),
+};
+
+export const shareApi = {
+  generate: (token: string) => request<{ token: string }>("/api/share/generate", "POST", { token }),
+  revoke: (token: string) => request<{ message: string }>("/api/share", "DELETE", { token }),
+  getSnapshot: (shareToken: string) => request<ShareSnapshot>(`/api/share/${shareToken}`, "GET"),
 };
 
 export const authApi = {

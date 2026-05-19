@@ -9,6 +9,8 @@ export type Transaction = {
   userId?: number;
   isRecurring?: boolean;
   frequency?: string | null;
+  notes?: string | null;
+  type?: "expense" | "income";
 };
 
 export type Budget = {
@@ -28,4 +30,19 @@ export type Insight = {
 
 export type InsightsResponse = {
   insights: Insight[];
+};
+
+export type Category = {
+  id: number;
+  name: string;
+  userId?: number;
+};
+
+export type ShareSnapshot = {
+  totalExpenses: number;
+  totalIncome: number;
+  netIncome: number;
+  transactionCount: number;
+  budgets: Budget[];
+  recentTransactions: Transaction[];
 };

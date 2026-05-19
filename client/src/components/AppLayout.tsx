@@ -42,6 +42,7 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
 
   return (
     <main className="dashboard">
+      <a href="#main-content" className="skip-nav">Skip to content</a>
       <header className="app-nav">
         {/* LEFT SIDE */}
         <div className="app-nav-left">
@@ -50,7 +51,7 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             <span className="nav-title">ExpenseIQ</span>
           </Link>
 
-          <nav className="app-nav-links">
+          <nav className="app-nav-links" aria-label="Main navigation">
             <NavLink to="/dashboard">
               <IconDashboard />
               <span>Dashboard</span>
@@ -82,13 +83,15 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {theme === "dark" ? "☀" : "☾"}
           </button>
 
-          <button type="button" className="nav-logout" onClick={onLogout}>
+          <button type="button" className="nav-logout" onClick={onLogout} aria-label="Sign out">
             Sign out
           </button>
         </div>
       </header>
 
-      <Outlet />
+      <div id="main-content">
+        <Outlet />
+      </div>
     </main>
   );
 }

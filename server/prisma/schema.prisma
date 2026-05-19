@@ -19,6 +19,7 @@ model User {
   transactions Transaction[]
   budgets      Budget[]
   categories   Category[]
+  shareToken  String?    @unique
 }
 
 model Category {
@@ -42,6 +43,7 @@ model Transaction {
   isRecurring Boolean  @default(false)
   frequency   String?
   notes       String?
+  type        String   @default("expense")
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

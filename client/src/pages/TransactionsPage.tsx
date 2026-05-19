@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../contexts/AuthContext";
 import { useTransactions } from "../hooks/useTransactions";
+import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
@@ -30,6 +31,8 @@ export default function TransactionsPage() {
     isBulkDeleting,
   } = useTransactions({ token, onUnauthorized });
 
+  const { categories, expenseCategories, incomeCategories, addCategory, removeCategory } = useCategories({ token, onUnauthorized });
+
   // Form state
   const [merchant, setMerchant] = useState("");
   const [amount, setAmount] = useState("");
@@ -37,11 +40,17 @@ export default function TransactionsPage() {
   const [recurring, setRecurring] = useState("none");
   const [transactionDate, setTransactionDate] = useState(todayStr());
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [transactionType, setTransactionType] = useState<"expense" | "income">("expense");
+
+  // Category management state
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   // Filter / sort state
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("newest");
+  const [dateFilter, setDateFilter] = useState<"all" | "7d" | "30d">("all");
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -53,6 +62,8 @@ export default function TransactionsPage() {
     setRecurring("none");
     setTransactionDate(todayStr());
     setEditingId(null);
+    setNotes("");
+    setTransactionType("expense");
   }, []);
 
   // Escape key to cancel edit
@@ -80,6 +91,11 @@ export default function TransactionsPage() {
       const q = searchQuery.toLowerCase();
       list = list.filter((t) => t.merchant.toLowerCase().includes(q));
     }
+    if (dateFilter !== "all") {
+      const days = dateFilter === "7d" ? 7 : 30;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+      list = list.filter(t => new Date(t.transactionDate ?? t.createdAt) >= cutoff);
+    }
     switch (sortOption) {
       case "oldest":
         list.sort(
@@ -102,7 +118,7 @@ export default function TransactionsPage() {
         );
     }
     return list;
-  }, [transactions, selectedCategory, searchQuery, sortOption]);
+  }, [transactions, selectedCategory, searchQuery, sortOption, dateFilter]);
 
   const addTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +133,8 @@ export default function TransactionsPage() {
       isRecurring: recurring !== "none",
       frequency: recurring !== "none" ? recurring : null,
       transactionDate: new Date(transactionDate).toISOString(),
+      notes: notes || null,
+      type: transactionType,
     };
     try {
       if (editingId !== null) {
@@ -140,6 +158,8 @@ export default function TransactionsPage() {
     setRecurring(t.frequency ?? "none");
     const dateStr = (t.transactionDate ?? t.createdAt).split("T")[0];
     setTransactionDate(dateStr);
+    setNotes(t.notes ?? "");
+    setTransactionType(t.type === "income" ? "income" : "expense");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -169,7 +189,7 @@ export default function TransactionsPage() {
       toast.error("No transactions to export.");
       return;
     }
-    const header = "Merchant,Amount,Category,Date,Recurring,Frequency";
+    const header = "Merchant,Amount,Category,Date,Recurring,Frequency,Notes,Type";
     const rows = transactions.map((t) =>
       [
         `"${t.merchant}"`,
@@ -178,6 +198,8 @@ export default function TransactionsPage() {
         new Date(t.transactionDate ?? t.createdAt).toLocaleDateString(),
         t.isRecurring ? "Yes" : "No",
         t.frequency ?? "",
+        `"${t.notes ?? ""}"`,
+        t.type ?? "expense",
       ].join(",")
     );
     const csv = [header, ...rows].join("\n");
@@ -188,6 +210,37 @@ export default function TransactionsPage() {
     a.download = "transactions.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.trim().split("\n").slice(1);
+    let imported = 0;
+    for (const line of lines) {
+      const cols = line.split(",").map(c => c.replace(/^"|"$/g, "").trim());
+      const [merchant, amountStr, category, date, , noteVal] = cols;
+      const amount = parseFloat(amountStr ?? "");
+      if (!merchant || isNaN(amount)) continue;
+      try {
+        await createTransaction({ merchant, amount, category: category || "Shopping",
+          transactionDate: date ? new Date(date).toISOString() : undefined,
+          notes: noteVal || null });
+        imported++;
+      } catch { /* skip bad rows */ }
+    }
+    toast.success(`Imported ${imported} transaction(s)`);
+    e.target.value = "";
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await addCategory(newCategoryName.trim());
+      setNewCategoryName("");
+      toast.success("Category added!");
+    } catch { /* handled in hook */ }
   };
 
   const toggleSelected = (id: number) => {
@@ -222,12 +275,31 @@ export default function TransactionsPage() {
     }
   };
 
+  const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
+
   return (
     <section className="content-grid">
       <div className="card">
         <h3>{editingId !== null ? "Edit Transaction" : "Add Transaction"}</h3>
 
         <form className="transaction-form" onSubmit={(e) => void addTransaction(e)}>
+          <div className="type-toggle">
+            <button
+              type="button"
+              className={`type-btn ${transactionType === "expense" ? "active expense" : ""}`}
+              onClick={() => { setTransactionType("expense"); setCategory(expenseCategories[0]?.name ?? "Shopping"); }}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              className={`type-btn ${transactionType === "income" ? "active income" : ""}`}
+              onClick={() => { setTransactionType("income"); setCategory(incomeCategories[0]?.name ?? "Salary"); }}
+            >
+              Income
+            </button>
+          </div>
+
           <label>
             Merchant
             <input
@@ -271,12 +343,21 @@ export default function TransactionsPage() {
           <label>
             Category
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="Shopping">Shopping</option>
-              <option value="Food">Food</option>
-              <option value="Transport">Transport</option>
-              <option value="Bills">Bills</option>
-              <option value="Entertainment">Entertainment</option>
+              {currentCategories.map(c => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
             </select>
+          </label>
+
+          <label>
+            Notes (optional)
+            <textarea
+              placeholder="Add a note…"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              style={{ resize: "vertical" }}
+            />
           </label>
 
           <label>
@@ -327,7 +408,49 @@ export default function TransactionsPage() {
           >
             Export CSV
           </button>
+
+          <input
+            type="file"
+            accept=".csv"
+            id="csv-import"
+            style={{ display: "none" }}
+            onChange={e => void handleCSVImport(e)}
+          />
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => document.getElementById("csv-import")?.click()}
+          >
+            Import CSV
+          </button>
         </form>
+
+        <details className="manage-categories">
+          <summary>Manage Categories</summary>
+          <div className="category-list">
+            {categories.map(c => (
+              <div key={c.id} className="category-item">
+                <span>{c.name}</span>
+                <button
+                  type="button"
+                  className="delete-button small"
+                  onClick={() => void removeCategory(c.id)}
+                  aria-label={`Remove ${c.name} category`}
+                >×</button>
+              </div>
+            ))}
+          </div>
+          <div className="category-add">
+            <input
+              type="text"
+              placeholder="New category…"
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleAddCategory(); } }}
+            />
+            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>Add</button>
+          </div>
+        </details>
       </div>
 
       <section className="card transactions-card">
@@ -354,11 +477,9 @@ export default function TransactionsPage() {
             disabled={isLoading}
           >
             <option value="All">All Categories</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Food">Food</option>
-            <option value="Transport">Transport</option>
-            <option value="Bills">Bills</option>
-            <option value="Entertainment">Entertainment</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
           </select>
 
           <select
@@ -381,6 +502,20 @@ export default function TransactionsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isLoading}
           />
+
+          <div className="filter-chip-group">
+            {(["all", "7d", "30d"] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                className={`type-btn${dateFilter === f ? " active expense" : ""}`}
+                onClick={() => setDateFilter(f)}
+                style={{ padding: "4px 10px", fontSize: "0.8rem" }}
+              >
+                {f === "all" ? "All Time" : f === "7d" ? "7 Days" : "30 Days"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {selectedIds.size > 0 && (
@@ -431,7 +566,10 @@ export default function TransactionsPage() {
                 </label>
 
                 <div style={{ flex: 1 }}>
-                  <p className="merchant">{t.merchant}</p>
+                  <p className="merchant">
+                    {t.merchant}
+                    {t.type === "income" && <span className="income-badge">Income</span>}
+                  </p>
                   <p className="category-badge" data-category={t.category}>{t.category}</p>
                   <p className="transaction-date">
                     {new Date(t.transactionDate ?? t.createdAt).toLocaleDateString("en-US", {
@@ -443,10 +581,13 @@ export default function TransactionsPage() {
                   {t.isRecurring && (
                     <p className="recurring-badge">🔁 {t.frequency}</p>
                   )}
+                  {t.notes && <p className="transaction-note">{t.notes}</p>}
                 </div>
 
                 <div className="transaction-actions">
-                  <p className="amount">${t.amount.toFixed(2)}</p>
+                  <p className={`amount${t.type === "income" ? " positive" : ""}`}>
+                    {t.type === "income" ? "+" : "-"}${t.amount.toFixed(2)}
+                  </p>
 
                   <button
                     type="button"

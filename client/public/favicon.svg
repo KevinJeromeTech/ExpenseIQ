@@ -6,12 +6,12 @@
       <stop offset="100%" stop-color="#9A7020"/>
     </linearGradient>
   </defs>
-  <g stroke="url(#gold)" stroke-width="11" stroke-linecap="butt" stroke-linejoin="miter" fill="none">
-    <polyline points="200,25 20,25 110,180"/>
-    <polyline points="172,25 200,25 124,155"/>
-    <line x1="172" y1="25" x2="110" y2="180"/>
-    <line x1="48"  y1="76"  x2="154" y2="76"/>
-    <line x1="68"  y1="110" x2="138" y2="110"/>
-    <line x1="84"  y1="138" x2="125" y2="138"/>
+  <g stroke="url(#gold)" stroke-width="15" stroke-linecap="butt" stroke-linejoin="miter" fill="none">
+    <polyline points="200,28 20,28 110,178"/>
+    <polyline points="172,28 200,28 126,152"/>
+    <line x1="172" y1="28" x2="110" y2="178"/>
+    <line x1="50"  y1="79"  x2="152" y2="79"/>
+    <line x1="70"  y1="112" x2="137" y2="112"/>
+    <line x1="86"  y1="139" x2="124" y2="139"/>
   </g>
 </svg>

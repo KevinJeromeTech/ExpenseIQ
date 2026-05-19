@@ -378,7 +378,7 @@ export default function DashboardPage() {
                     ${spent.toFixed(2)} spent
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                   <input
                     className="budget-input"
                     type="number"
@@ -389,16 +389,16 @@ export default function DashboardPage() {
                     onChange={(e) =>
                       setCategoryBudgetInputs((prev) => ({ ...prev, [cat]: e.target.value }))
                     }
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                   />
                   <button
                     type="button"
-                    className="primary-button budget-button"
+                    className="primary-button"
                     onClick={() => void handleSaveCategoryBudget(cat)}
                     disabled={isSaving || isSavingBudget}
-                    style={{ whiteSpace: "nowrap" }}
+                    style={{ whiteSpace: "nowrap", padding: "0.5rem 1.1rem", fontSize: "0.875rem", flexShrink: 0 }}
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    {isSaving ? "Saving…" : "Save"}
                   </button>
                 </div>
                 {limit > 0 && (

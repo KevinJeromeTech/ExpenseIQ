@@ -5,8 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { PreferencesContext } from "./contexts/PreferencesContext";
-import { usePreferences } from "./hooks/usePreferences";
+import PreferencesProvider from "./components/PreferencesProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -29,15 +28,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(reg => reg.unregister());
   });
-}
-
-function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const value = usePreferences();
-  return (
-    <PreferencesContext.Provider value={value}>
-      {children}
-    </PreferencesContext.Provider>
-  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

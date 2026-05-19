@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
     }
 
     return insights;
-  }, [analyticsTransactions, categoryChartData, trendData]);
+  }, [analyticsTransactions, categoryChartData, trendData, fmt]);
 
   return (
     <>

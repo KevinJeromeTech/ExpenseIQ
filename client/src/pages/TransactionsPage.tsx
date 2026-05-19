@@ -5,7 +5,8 @@ import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
-import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag } from "lucide-react";
+import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag, SlidersHorizontal, Search, Calendar } from "lucide-react";
+import Dropdown from "../components/Dropdown";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -368,7 +369,9 @@ export default function TransactionsPage() {
             <select value={recurring} onChange={(e) => setRecurring(e.target.value)}>
               <option value="none">One-Time</option>
               <option value="weekly">Weekly</option>
+              <option value="biweekly">Bi-Weekly</option>
               <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
             </select>
           </label>
 
@@ -475,63 +478,74 @@ export default function TransactionsPage() {
           <h3>Recent Transactions</h3>
         </div>
 
-        <div className="filter-row">
-          <label className="bulk-checkbox-label">
-            <input
-              type="checkbox"
-              className="row-checkbox"
-              checked={isAllSelected}
-              onChange={toggleSelectAll}
-              disabled={isLoading || filteredTransactions.length === 0}
+        <div className="filter-bar">
+          <div className="filter-bar-top">
+            <label className="bulk-checkbox-label">
+              <input
+                type="checkbox"
+                className="row-checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                disabled={isLoading || filteredTransactions.length === 0}
+              />
+              <span>All</span>
+            </label>
+
+            <Dropdown
+              value={selectedCategory}
+              options={[
+                { value: "All", label: "All Categories" },
+                ...categories.map(c => ({ value: c.name, label: c.name })),
+              ]}
+              onChange={setSelectedCategory}
+              disabled={isLoading}
+              icon={<SlidersHorizontal size={13} />}
             />
-            All
-          </label>
 
-          <select
-            className="filter-select"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="All">All Categories</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
+            <Dropdown
+              value={sortOption}
+              options={[
+                { value: "newest", label: "Newest First" },
+                { value: "oldest", label: "Oldest First" },
+                { value: "highest", label: "Highest Amount" },
+                { value: "lowest", label: "Lowest Amount" },
+              ]}
+              onChange={setSortOption}
+              disabled={isLoading}
+            />
+          </div>
 
-          <select
-            className="filter-select"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="highest">Highest Amount</option>
-            <option value="lowest">Lowest Amount</option>
-          </select>
+          <div className="filter-bar-bottom">
+            <div className="search-wrapper">
+              <Search size={14} className="search-icon" />
+              <input
+                className="search-input"
+                type="text"
+                placeholder="Search merchant…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={isLoading}
+              />
+              {searchQuery && (
+                <button type="button" className="search-clear" onClick={() => setSearchQuery("")}>
+                  <X size={13} />
+                </button>
+              )}
+            </div>
 
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Search merchant..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={isLoading}
-          />
-
-          <div className="filter-chip-group">
-            {(["all", "7d", "30d"] as const).map(f => (
-              <button
-                key={f}
-                type="button"
-                className={`type-btn${dateFilter === f ? " active expense" : ""}`}
-                onClick={() => setDateFilter(f)}
-                style={{ padding: "4px 10px", fontSize: "0.8rem" }}
-              >
-                {f === "all" ? "All Time" : f === "7d" ? "7 Days" : "30 Days"}
-              </button>
-            ))}
+            <div className="date-chip-group">
+              <Calendar size={13} className="date-chip-icon" />
+              {(["all", "7d", "30d"] as const).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  className={`date-chip${dateFilter === f ? " active" : ""}`}
+                  onClick={() => setDateFilter(f)}
+                >
+                  {f === "all" ? "All" : f === "7d" ? "7d" : "30d"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

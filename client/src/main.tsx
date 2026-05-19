@@ -24,14 +24,11 @@ const queryClient = new QueryClient({
 });
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  // Unregister any previously installed service workers to prevent stale cache issues
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
   });
 }
-
-// Ping the server on load so Render wakes up before the user needs data
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-fetch(`${API_BASE}/api/health`, { method: "GET" }).catch(() => {});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

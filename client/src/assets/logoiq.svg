@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 200" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="18" y1="22" x2="208" y2="183" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F5E576"/>
+      <stop offset="45%"  stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#9A7020"/>
+    </linearGradient>
+  </defs>
+  <g stroke="url(#gold)" stroke-width="11" stroke-linecap="butt" stroke-linejoin="miter" fill="none">
+    <!-- Top bar + left diagonal (miter join at top-left corner) -->
+    <polyline points="200,25 20,25 110,180"/>
+    <!-- Top bar (right portion) + right outer diagonal (miter join at top-right corner) -->
+    <polyline points="172,25 200,25 124,155"/>
+    <!-- Inner slash: from the top bar inward, runs to the bottom tip -->
+    <line x1="172" y1="25" x2="110" y2="180"/>
+    <!-- Horizontal bar 1 -->
+    <line x1="48"  y1="76"  x2="154" y2="76"/>
+    <!-- Horizontal bar 2 -->
+    <line x1="68"  y1="110" x2="138" y2="110"/>
+    <!-- Horizontal bar 3 -->
+    <line x1="84"  y1="138" x2="125" y2="138"/>
+  </g>
+</svg>

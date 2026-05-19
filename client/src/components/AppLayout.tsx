@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import logo from "../assets/logoiq.png";
+import logo from "../assets/logoiq.svg";
 import { useTheme } from "../hooks/useTheme";
 
 type AppLayoutProps = {

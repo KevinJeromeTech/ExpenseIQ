@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import logo from "../assets/logoiq.png";
+import logo from "../assets/logoiq.svg";
 import { authApi } from "../services/api";
 
 type AuthFormProps = {

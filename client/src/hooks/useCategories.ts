@@ -5,6 +5,12 @@ import type { Category } from "../types";
 
 type Props = { token: string | null; onUnauthorized: () => void };
 
+const DEFAULT_INCOME_NAMES = ["Salary", "Freelance", "Investment", "Gift", "Other Income"];
+const DEFAULT_EXPENSE_NAMES = ["Shopping", "Food", "Transport", "Bills", "Entertainment", "Health", "Education", "Other"];
+
+const DEFAULT_INCOME_CATS: Category[] = DEFAULT_INCOME_NAMES.map((name, i) => ({ id: -(i + 1), name }));
+const DEFAULT_EXPENSE_CATS: Category[] = DEFAULT_EXPENSE_NAMES.map((name, i) => ({ id: -(i + 100), name }));
+
 export function useCategories({ token, onUnauthorized }: Props) {
   const qc = useQueryClient();
 
@@ -15,12 +21,11 @@ export function useCategories({ token, onUnauthorized }: Props) {
     staleTime: 60_000,
   });
 
-  const expenseCategories = categories.filter(c =>
-    !["Salary","Freelance","Investment","Gift","Other Income"].includes(c.name)
-  );
-  const incomeCategories = categories.filter(c =>
-    ["Salary","Freelance","Investment","Gift","Other Income"].includes(c.name)
-  );
+  const rawExpense = categories.filter(c => !DEFAULT_INCOME_NAMES.includes(c.name));
+  const rawIncome = categories.filter(c => DEFAULT_INCOME_NAMES.includes(c.name));
+
+  const expenseCategories = rawExpense.length > 0 ? rawExpense : DEFAULT_EXPENSE_CATS;
+  const incomeCategories = rawIncome.length > 0 ? rawIncome : DEFAULT_INCOME_CATS;
 
   const { mutateAsync: addCategory } = useMutation({
     mutationFn: (name: string) => categoriesApi.create(token!, name),

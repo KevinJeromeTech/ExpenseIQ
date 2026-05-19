@@ -76,11 +76,16 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
       const lastDate = new Date(mostRecent.transactionDate);
       let isDue = false;
 
+      const daysSince = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+
       if (recurring.frequency === 'weekly') {
-        const daysSince = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
         isDue = daysSince >= 7;
+      } else if (recurring.frequency === 'biweekly') {
+        isDue = daysSince >= 14;
       } else if (recurring.frequency === 'monthly') {
         isDue = lastDate.getMonth() !== now.getMonth() || lastDate.getFullYear() !== now.getFullYear();
+      } else if (recurring.frequency === 'yearly') {
+        isDue = lastDate.getFullYear() !== now.getFullYear();
       }
 
       if (isDue) {
@@ -88,13 +93,13 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
         const alreadyCreatedThisPeriod = transactions.some(t => {
           if (t.merchant !== recurring.merchant || t.category !== recurring.category) return false;
           const tDate = new Date(t.transactionDate);
-          if (recurring.frequency === 'weekly') {
-            const daysSince = (now.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24);
-            return daysSince < 7;
-          }
+          const daysSinceTx = (now.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24);
+          if (recurring.frequency === 'weekly') return daysSinceTx < 7;
+          if (recurring.frequency === 'biweekly') return daysSinceTx < 14;
           if (recurring.frequency === 'monthly') {
             return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
           }
+          if (recurring.frequency === 'yearly') return tDate.getFullYear() === now.getFullYear();
           return false;
         });
 

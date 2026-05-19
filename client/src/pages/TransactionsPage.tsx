@@ -368,7 +368,9 @@ export default function TransactionsPage() {
             <select value={recurring} onChange={(e) => setRecurring(e.target.value)}>
               <option value="none">One-Time</option>
               <option value="weekly">Weekly</option>
+              <option value="biweekly">Bi-Weekly</option>
               <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
             </select>
           </label>
 

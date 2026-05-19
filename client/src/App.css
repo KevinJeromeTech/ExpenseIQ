@@ -1221,67 +1221,11 @@ img {
   color: #94a3b8;
 }
 
-@media (max-width: 900px) {
-  .summary-grid,
-  .content-grid,
-  .bottom-grid,
-  .budget-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Hide desktop nav on mobile */
-  .app-nav {
-    display: none;
-  }
-
-  /* Show mobile top bar */
-  .mobile-top-bar {
-    display: flex;
-  }
-
-  /* Show mobile bottom tab bar */
-  .mobile-bottom-nav {
-    display: flex;
-  }
-
-  /* Add bottom padding so content isn't hidden behind tab bar */
-  .main-content {
-    padding-bottom: 80px;
-  }
-
-  .hero {
-    min-height: auto;
-    margin-bottom: 28px;
-  }
-
-  .hero h1 {
-    font-size: 2.4rem;
-  }
-
-  .hero-logo {
-    width: 76px;
-    height: 76px;
-  }
-
-  .filter-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .transaction-row {
-    align-items: flex-start;
-  }
-
-  .filter-select {
-    width: 100%;
-  }
-}
-
 /* ================================================
-   MOBILE TOP BAR  (hidden on desktop)
+   MOBILE TOP BAR  (hidden on desktop by default)
 ================================================ */
 .mobile-top-bar {
-  display: none; /* shown via media query */
+  display: none;
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
@@ -1319,10 +1263,10 @@ img {
 }
 
 /* ================================================
-   MOBILE BOTTOM TAB BAR  (hidden on desktop)
+   MOBILE BOTTOM TAB BAR  (hidden on desktop by default)
 ================================================ */
 .mobile-bottom-nav {
-  display: none; /* shown via media query */
+  display: none;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -1386,6 +1330,63 @@ img {
 [data-theme="light"] .mob-tab.active {
   color: #b8860b;
 }
+
+@media (max-width: 900px) {
+  .summary-grid,
+  .content-grid,
+  .bottom-grid,
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hide desktop nav on mobile */
+  .app-nav {
+    display: none;
+  }
+
+  /* Show mobile top bar */
+  .mobile-top-bar {
+    display: flex;
+  }
+
+  /* Show mobile bottom tab bar */
+  .mobile-bottom-nav {
+    display: flex;
+  }
+
+  /* Add bottom padding so content isn't hidden behind tab bar */
+  .main-content {
+    padding-bottom: 80px;
+  }
+
+  .hero {
+    min-height: auto;
+    margin-bottom: 28px;
+  }
+
+  .hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .hero-logo {
+    width: 76px;
+    height: 76px;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transaction-row {
+    align-items: flex-start;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+}
+
 
 .filter-chip {
   border: 1px solid var(--border);

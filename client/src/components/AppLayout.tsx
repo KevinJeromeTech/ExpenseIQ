@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import logo from "../assets/logoiq.svg";
 import { useTheme } from "../hooks/useTheme";
@@ -36,6 +37,16 @@ function IconAnalytics() {
   );
 }
 
+function IconSignOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 function IconSettings() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -48,6 +59,19 @@ function IconSettings() {
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
   const { theme, toggle } = useTheme();
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   return (
     <main className="dashboard">
@@ -115,9 +139,41 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {theme === "dark" ? "☀" : "☾"}
           </button>
 
-          <NavLink to="/settings" className="mobile-avatar" title="Account settings">
-            <span className="user-avatar">{initial}</span>
-          </NavLink>
+          <div className="mobile-avatar-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className="mobile-avatar"
+              aria-label="Account menu"
+              aria-expanded={showUserMenu}
+              onClick={() => setShowUserMenu((v) => !v)}
+            >
+              <span className="user-avatar">{initial}</span>
+            </button>
+
+            {showUserMenu && (
+              <div className="mobile-user-menu" role="menu">
+                <p className="mobile-user-email">{userEmail}</p>
+                <Link
+                  to="/settings"
+                  className="mobile-user-menu-item"
+                  role="menuitem"
+                  onClick={() => setShowUserMenu(false)}
+                >
+                  <IconSettings />
+                  Settings
+                </Link>
+                <button
+                  type="button"
+                  className="mobile-user-menu-item signout"
+                  role="menuitem"
+                  onClick={() => { setShowUserMenu(false); onLogout(); }}
+                >
+                  <IconSignOut />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

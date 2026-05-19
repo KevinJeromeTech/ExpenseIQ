@@ -6,6 +6,10 @@ import { useInsights } from "../hooks/useInsights";
 import { shareApi } from "../services/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
+import {
+  TrendingUp, TrendingDown, DollarSign, Activity,
+  Target, Share2, Trophy, Zap, BarChart2, ArrowUpRight, ArrowDownRight,
+} from "lucide-react";
 
 const CATEGORIES = ["Food", "Transport", "Shopping", "Bills", "Entertainment"] as const;
 const COLORS = ["#f472b6","#34d399","#60a5fa","#fb923c","#a78bfa","#fbbf24","#38bdf8"];
@@ -200,25 +204,37 @@ export default function DashboardPage() {
 
       <section className="stats-grid">
         <div className="stat-card">
-          <p className="stat-label">Total Income</p>
+          <div className="stat-icon-row">
+            <p className="stat-label">Total Income</p>
+            <TrendingUp size={18} className="stat-icon positive" />
+          </div>
           <h2 className="stat-value positive">${totalIncome.toFixed(2)}</h2>
           <p className="stat-sub">All time</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Total Expenses</p>
+          <div className="stat-icon-row">
+            <p className="stat-label">Total Expenses</p>
+            <TrendingDown size={18} className="stat-icon danger" />
+          </div>
           <h2 className="stat-value">${totalExpenses.toFixed(2)}</h2>
           <p className="stat-sub">All time</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Net Income</p>
+          <div className="stat-icon-row">
+            <p className="stat-label">Net Income</p>
+            <DollarSign size={18} className={`stat-icon ${netIncome >= 0 ? "positive" : "danger"}`} />
+          </div>
           <h2 className={`stat-value ${netIncome >= 0 ? "positive" : "danger"}`}>${netIncome.toFixed(2)}</h2>
           <p className="stat-sub">Income − Expenses</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Transactions</p>
+          <div className="stat-icon-row">
+            <p className="stat-label">Transactions</p>
+            <Activity size={18} className="stat-icon" />
+          </div>
           <h2 className="stat-value">{transactions.length}</h2>
           <p className="stat-sub">Recorded</p>
         </div>
@@ -270,13 +286,17 @@ export default function DashboardPage() {
 
       <section className="card budget-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1rem" }}>
-          <h3 style={{ margin: 0 }}>Monthly Budget</h3>
+          <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Target size={18} />
+            Monthly Budget
+          </h3>
           <button
             type="button"
             className="secondary-button"
             onClick={() => void handleGenerateShare()}
             disabled={isGeneratingShare}
           >
+            <Share2 size={14} />
             {isGeneratingShare ? "Generating…" : "Share Report"}
           </button>
         </div>
@@ -308,6 +328,7 @@ export default function DashboardPage() {
               onClick={() => void handleSaveMonthlyBudget()}
               disabled={isSavingBudget}
             >
+              <Target size={14} />
               {isSavingBudget ? "Saving..." : "Save Budget"}
             </button>
           </div>
@@ -358,7 +379,10 @@ export default function DashboardPage() {
       </section>
 
       <section className="card budget-card">
-        <h3>Category Budgets</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <BarChart2 size={18} />
+          Category Budgets
+        </h3>
         <p className="budget-caption" style={{ marginBottom: "1rem" }}>
           Set spending limits per category for this month.
         </p>
@@ -393,10 +417,9 @@ export default function DashboardPage() {
                   />
                   <button
                     type="button"
-                    className="primary-button"
+                    className="primary-button btn-auto"
                     onClick={() => void handleSaveCategoryBudget(cat)}
                     disabled={isSaving || isSavingBudget}
-                    style={{ whiteSpace: "nowrap", padding: "0.5rem 1.1rem", fontSize: "0.875rem", flexShrink: 0 }}
                   >
                     {isSaving ? "Saving…" : "Save"}
                   </button>
@@ -470,8 +493,13 @@ export default function DashboardPage() {
                 <span className="mom-cat">{row.category}</span>
                 <span>${row.current.toFixed(2)}</span>
                 <span>${row.previous.toFixed(2)}</span>
-                <span className={row.change === null ? "" : row.change > 0 ? "danger" : "positive"}>
-                  {row.change === null ? "—" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(0)}%`}
+                <span className={row.change === null ? "" : row.change > 0 ? "danger" : "positive"} style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                  {row.change === null ? "—" : (
+                    <>
+                      {row.change > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                      {`${row.change > 0 ? "+" : ""}${row.change.toFixed(0)}%`}
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -481,7 +509,10 @@ export default function DashboardPage() {
 
       <section className="card achievements-card">
         <p className="eyebrow">Achievements</p>
-        <h3>Your Milestones</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Trophy size={18} />
+          Your Milestones
+        </h3>
         {achievements.length === 0 ? (
           <p className="empty-state">Keep logging transactions to unlock achievements.</p>
         ) : (
@@ -499,7 +530,10 @@ export default function DashboardPage() {
 
       <section className="card insights-card">
         <p className="eyebrow">AI Insights</p>
-        <h3>Smart Financial Signals</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Zap size={18} />
+          Smart Financial Signals
+        </h3>
 
         {insights.length === 0 ? (
           <p className="empty-state">

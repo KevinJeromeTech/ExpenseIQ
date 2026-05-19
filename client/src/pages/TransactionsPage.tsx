@@ -4,6 +4,7 @@ import { useAuthContext } from "../contexts/AuthContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
+import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag } from "lucide-react";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -374,6 +375,13 @@ export default function TransactionsPage() {
             className={`primary-button ${editingId !== null ? "edit-mode" : ""}`}
             disabled={isSaving}
           >
+            {isSaving ? (
+              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : editingId !== null ? (
+              <Pencil size={14} />
+            ) : (
+              <Plus size={14} />
+            )}
             {isSaving
               ? "Processing..."
               : editingId !== null
@@ -387,6 +395,7 @@ export default function TransactionsPage() {
               className="cancel-button"
               onClick={resetForm}
             >
+              <X size={14} />
               Cancel
             </button>
           )}
@@ -397,6 +406,7 @@ export default function TransactionsPage() {
             onClick={() => void seedDemoTransactions()}
             disabled={isSaving}
           >
+            <RefreshCw size={14} />
             Add Demo Transactions
           </button>
 
@@ -406,6 +416,7 @@ export default function TransactionsPage() {
             onClick={exportTransactionsCSV}
             disabled={isLoading}
           >
+            <Download size={14} />
             Export CSV
           </button>
 
@@ -421,6 +432,7 @@ export default function TransactionsPage() {
             className="secondary-button"
             onClick={() => document.getElementById("csv-import")?.click()}
           >
+            <Upload size={14} />
             Import CSV
           </button>
         </form>
@@ -448,7 +460,10 @@ export default function TransactionsPage() {
               onChange={e => setNewCategoryName(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleAddCategory(); } }}
             />
-            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>Add</button>
+            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>
+              <Tag size={12} />
+              Add
+            </button>
           </div>
         </details>
       </div>
@@ -593,7 +608,9 @@ export default function TransactionsPage() {
                     type="button"
                     className="edit-button"
                     onClick={() => startEditing(t)}
+                    title="Edit transaction"
                   >
+                    <Pencil size={13} />
                     Edit
                   </button>
 
@@ -601,7 +618,9 @@ export default function TransactionsPage() {
                     type="button"
                     className="delete-button"
                     onClick={() => void deleteTransaction(t.id)}
+                    title="Delete transaction"
                   >
+                    <Trash2 size={13} />
                     Delete
                   </button>
                 </div>

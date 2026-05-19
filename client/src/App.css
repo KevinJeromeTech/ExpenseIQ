@@ -503,6 +503,16 @@ img {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.primary-button.btn-auto {
+  width: auto;
+  padding: 8px 16px;
+  font-size: 0.875rem;
 }
 
 .primary-button:hover {
@@ -616,6 +626,9 @@ img {
   color: #fca5a5;
   cursor: pointer;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .delete-button:hover {
@@ -630,6 +643,9 @@ img {
   color: #93c5fd;
   cursor: pointer;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .edit-button:hover {
@@ -765,6 +781,10 @@ img {
   color: #cbd5e1;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .cancel-button:hover {
@@ -938,11 +958,19 @@ img {
   border-radius: 8px;
   cursor: pointer;
   transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .secondary-button:hover {
   background: #3b82f6;
   color: white;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* =========================
@@ -1137,6 +1165,20 @@ img {
   box-shadow: 0 8px 32px rgba(245, 158, 11, 0.15), 0 2px 8px rgba(0,0,0,0.3);
   transform: translateY(-4px);
 }
+
+.stat-icon-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-icon {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.stat-icon.positive { color: #34d399; opacity: 0.75; }
+.stat-icon.danger   { color: #f87171; opacity: 0.75; }
 
 .stat-label {
   color: #64748b;

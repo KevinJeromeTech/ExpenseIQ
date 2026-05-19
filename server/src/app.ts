@@ -133,7 +133,7 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
 app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { merchant, amount, category, isRecurring, frequency, transactionDate } = req.body ?? {};
+    const { merchant, amount, category, isRecurring, frequency, transactionDate, notes } = req.body ?? {};
 
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -156,6 +156,7 @@ app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Respon
         transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
         isRecurring: isRecurring ?? false,
         frequency: frequency ?? null,
+        notes: notes ?? null,
       },
     });
 
@@ -173,7 +174,7 @@ app.put(
     try {
       const userId = req.user?.userId;
       const id = Number(req.params.id);
-      const { merchant, amount, category, isRecurring, frequency, transactionDate } = req.body ?? {};
+      const { merchant, amount, category, isRecurring, frequency, transactionDate, notes } = req.body ?? {};
 
       if (!userId) {
         res.status(401).json({ error: "Unauthorized" });
@@ -205,6 +206,7 @@ app.put(
           isRecurring: isRecurring ?? false,
           frequency: frequency ?? null,
           transactionDate: transactionDate ? new Date(transactionDate) : undefined,
+          notes: notes ?? null,
         },
       });
 
@@ -518,6 +520,62 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error("Failed to generate insights:", error);
     res.status(500).json({ error: "Failed to generate insights" });
+  }
+});
+
+const DEFAULT_CATEGORIES = ["Shopping", "Food", "Transport", "Bills", "Entertainment"];
+
+app.get("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    let categories = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    if (categories.length === 0) {
+      await prisma.category.createMany({
+        data: DEFAULT_CATEGORIES.map((name) => ({ name, userId })),
+        skipDuplicates: true,
+      });
+      categories = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    }
+    res.json(categories);
+  } catch (error) {
+    console.error("Failed to fetch categories:", error);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+app.post("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { name } = req.body ?? {};
+  if (!name || typeof name !== "string" || !name.trim()) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  try {
+    const category = await prisma.category.create({ data: { name: name.trim(), userId } });
+    res.status(201).json(category);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Unique constraint")) {
+      res.status(409).json({ error: "Category already exists" });
+    } else {
+      res.status(500).json({ error: "Failed to create category" });
+    }
+  }
+});
+
+app.delete("/api/categories/:id", authenticate, async (req: AuthRequest & Request<{ id: string }>, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = Number(req.params.id);
+  try {
+    const existing = await prisma.category.findFirst({ where: { id, userId } });
+    if (!existing) { res.status(404).json({ error: "Category not found" }); return; }
+    await prisma.category.delete({ where: { id } });
+    res.json({ message: "Category deleted" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete category" });
   }
 });
 

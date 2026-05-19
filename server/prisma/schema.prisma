@@ -18,6 +18,16 @@ model User {
 
   transactions Transaction[]
   budgets      Budget[]
+  categories   Category[]
+}
+
+model Category {
+  id     Int    @id @default(autoincrement())
+  name   String
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, name])
+  @@index([userId])
 }
 
 model Transaction {
@@ -31,6 +41,7 @@ model Transaction {
 
   isRecurring Boolean  @default(false)
   frequency   String?
+  notes       String?
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

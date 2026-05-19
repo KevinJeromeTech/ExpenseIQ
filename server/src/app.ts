@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import express, { Request, Response } from "express";
+import { randomBytes } from "crypto";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
@@ -51,10 +52,79 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
 
     const transactions = await prisma.transaction.findMany({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { transactionDate: "desc" },
     });
 
+    // Process recurring transactions
+    const recurringTransactions = transactions.filter(t => t.isRecurring && t.frequency);
+    const now = new Date();
+    const newEntries = [];
+
+    for (const recurring of recurringTransactions) {
+      // Find the most recent occurrence of this recurring transaction
+      const mostRecent = transactions
+        .filter(t =>
+          t.merchant === recurring.merchant &&
+          t.category === recurring.category &&
+          t.isRecurring &&
+          t.frequency === recurring.frequency
+        )
+        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())[0];
+
+      if (!mostRecent) continue;
+
+      const lastDate = new Date(mostRecent.transactionDate);
+      let isDue = false;
+
+      if (recurring.frequency === 'weekly') {
+        const daysSince = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+        isDue = daysSince >= 7;
+      } else if (recurring.frequency === 'monthly') {
+        isDue = lastDate.getMonth() !== now.getMonth() || lastDate.getFullYear() !== now.getFullYear();
+      }
+
+      if (isDue) {
+        // Check we haven't already created one this period
+        const alreadyCreatedThisPeriod = transactions.some(t => {
+          if (t.merchant !== recurring.merchant || t.category !== recurring.category) return false;
+          const tDate = new Date(t.transactionDate);
+          if (recurring.frequency === 'weekly') {
+            const daysSince = (now.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24);
+            return daysSince < 7;
+          }
+          if (recurring.frequency === 'monthly') {
+            return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+          }
+          return false;
+        });
+
+        if (!alreadyCreatedThisPeriod) {
+          newEntries.push({
+            merchant: recurring.merchant,
+            amount: recurring.amount,
+            category: recurring.category,
+            isRecurring: true,
+            frequency: recurring.frequency,
+            userId,
+            transactionDate: now,
+          });
+        }
+      }
+    }
+
+    if (newEntries.length > 0) {
+      await prisma.transaction.createMany({ data: newEntries });
+      // Re-fetch after creating new entries
+      const updatedTransactions = await prisma.transaction.findMany({
+        where: { userId },
+        orderBy: { transactionDate: 'desc' },
+      });
+      res.json(updatedTransactions);
+      return;
+    }
+
     res.json(transactions);
+    return;
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
@@ -64,7 +134,7 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
 app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { merchant, amount, category, createdAt, notes, type, isRecurring, frequency } = req.body ?? {};
+    const { merchant, amount, category, isRecurring, frequency, transactionDate, notes, type } = req.body ?? {};
 
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -84,11 +154,11 @@ app.post("/api/transactions", authenticate, async (req: AuthRequest, res: Respon
         amount: Number(amount),
         category,
         userId,
-        createdAt: createdAt ? new Date(createdAt) : new Date(),
-        notes: notes ?? null,
-        type: type ?? "expense",
+        transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
         isRecurring: isRecurring ?? false,
         frequency: frequency ?? null,
+        notes: notes ?? null,
+        type: type === "income" ? "income" : "expense",
       },
     });
 
@@ -106,7 +176,7 @@ app.put(
     try {
       const userId = req.user?.userId;
       const id = Number(req.params.id);
-      const { merchant, amount, category, notes, type, isRecurring, frequency } = req.body ?? {};
+      const { merchant, amount, category, isRecurring, frequency, transactionDate, notes, type } = req.body ?? {};
 
       if (!userId) {
         res.status(401).json({ error: "Unauthorized" });
@@ -135,10 +205,11 @@ app.put(
           merchant,
           amount: Number(amount),
           category,
+          isRecurring: isRecurring ?? false,
+          frequency: frequency ?? null,
+          transactionDate: transactionDate ? new Date(transactionDate) : undefined,
           notes: notes ?? null,
-          type: type ?? "expense",
-          isRecurring: isRecurring ?? existingTransaction.isRecurring,
-          frequency: frequency ?? existingTransaction.frequency,
+          type: type === "income" ? "income" : "expense",
         },
       });
 
@@ -271,17 +342,13 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
 
     const transactions = await prisma.transaction.findMany({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { transactionDate: "desc" },
     });
 
-    const budget = await prisma.budget.findFirst({
-      where: {
-        userId,
-        month: currentMonth,
-        category: "Monthly",
-      },
-      orderBy: { id: "desc" },
+    const categoryBudgets = await prisma.budget.findMany({
+      where: { userId, month: currentMonth },
     });
+    const globalBudget = categoryBudgets.find(b => b.category === 'Monthly');
 
     type Insight = {
       type: "positive" | "warning" | "danger";
@@ -335,8 +402,8 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
     const dailyAverage = totalSpent / Math.max(today, 1);
     const projectedSpend = dailyAverage * daysInMonth;
 
-    if (budget && budget.limit > 0) {
-      const percentUsed = (totalSpent / budget.limit) * 100;
+    if (globalBudget && globalBudget.limit > 0) {
+      const percentUsed = (totalSpent / globalBudget.limit) * 100;
 
       insights.push({
         type:
@@ -345,14 +412,14 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
             : percentUsed < 80
             ? "warning"
             : "danger",
-        message: `You’ve spent $${totalSpent.toFixed(
+        message: `You've spent $${totalSpent.toFixed(
           2
         )} this month, which is ${percentUsed.toFixed(1)}% of your budget.`,
       });
     } else {
       insights.push({
         type: "warning",
-        message: `You’ve spent $${totalSpent.toFixed(
+        message: `You've spent $${totalSpent.toFixed(
           2
         )} this month. Set a monthly budget to unlock better insights.`,
       });
@@ -376,8 +443,8 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
 
     let projectionType: "positive" | "warning" | "danger" = "positive";
 
-    if (budget && budget.limit > 0) {
-      const projectedPercent = (projectedSpend / budget.limit) * 100;
+    if (globalBudget && globalBudget.limit > 0) {
+      const projectedPercent = (projectedSpend / globalBudget.limit) * 100;
 
       if (projectedPercent > 100) {
         projectionType = "danger";
@@ -388,34 +455,34 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
 
     insights.push({
       type: projectionType,
-      message: `At your current pace, you’re projected to spend $${projectedSpend.toFixed(
+      message: `At your current pace, you're projected to spend $${projectedSpend.toFixed(
         2
       )} by month-end.`,
     });
 
-    if (budget && budget.limit > 0) {
-      if (projectedSpend > budget.limit) {
+    if (globalBudget && globalBudget.limit > 0) {
+      if (projectedSpend > globalBudget.limit) {
         insights.push({
           type: "danger",
           message: `You are trending over budget by $${(
-            projectedSpend - budget.limit
+            projectedSpend - globalBudget.limit
           ).toFixed(2)} this month.`,
         });
       } else {
         insights.push({
           type: "positive",
           message: `You are currently on pace to stay $${(
-            budget.limit - projectedSpend
+            globalBudget.limit - projectedSpend
           ).toFixed(2)} under budget.`,
         });
       }
 
-      const remaining = budget.limit - totalSpent;
+      const remaining = globalBudget.limit - totalSpent;
 
       if (daysLeft > 0) {
         const rawDailySpend = remaining / daysLeft;
         const safeDailySpend = Math.max(rawDailySpend, 0);
-        const percentUsed = (totalSpent / budget.limit) * 100;
+        const percentUsed = (totalSpent / globalBudget.limit) * 100;
 
         if (percentUsed >= 60) {
           insights.push({
@@ -434,11 +501,127 @@ app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) =
       }
     }
 
+    // Per-category budget insights
+    const categoriesWithBudget = categoryBudgets.filter(b => b.category !== 'Monthly');
+    for (const catBudget of categoriesWithBudget) {
+      const catSpent = categoryTotals[catBudget.category] ?? 0;
+      const catPercent = (catSpent / catBudget.limit) * 100;
+      if (catPercent >= 100) {
+        insights.push({
+          type: 'danger',
+          message: `You've exceeded your ${catBudget.category} budget ($${catSpent.toFixed(2)} / $${catBudget.limit.toFixed(2)}).`,
+        });
+      } else if (catPercent >= 75) {
+        insights.push({
+          type: 'warning',
+          message: `You're at ${catPercent.toFixed(0)}% of your ${catBudget.category} budget ($${catSpent.toFixed(2)} / $${catBudget.limit.toFixed(2)}).`,
+        });
+      }
+    }
+
     res.json({ insights: insights.slice(0, 7) });
   } catch (error) {
     console.error("Failed to generate insights:", error);
     res.status(500).json({ error: "Failed to generate insights" });
   }
+});
+
+const DEFAULT_EXPENSE_CATEGORIES = ["Shopping", "Food", "Transport", "Bills", "Entertainment"];
+const DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Investment", "Gift", "Other Income"];
+const ALL_DEFAULT_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
+
+app.get("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    let cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    if (cats.length === 0) {
+      await prisma.category.createMany({
+        data: ALL_DEFAULT_CATEGORIES.map(name => ({ name, userId })),
+        skipDuplicates: true,
+      });
+      cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    }
+    res.json(cats);
+  } catch { res.status(500).json({ error: "Failed to fetch categories" }); }
+});
+
+app.post("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { name } = req.body ?? {};
+  if (!name || typeof name !== "string" || !name.trim()) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  try {
+    const category = await prisma.category.create({ data: { name: name.trim(), userId } });
+    res.status(201).json(category);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Unique constraint")) {
+      res.status(409).json({ error: "Category already exists" });
+    } else {
+      res.status(500).json({ error: "Failed to create category" });
+    }
+  }
+});
+
+app.delete("/api/categories/:id", authenticate, async (req: AuthRequest & Request<{ id: string }>, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = Number(req.params.id);
+  try {
+    const existing = await prisma.category.findFirst({ where: { id, userId } });
+    if (!existing) { res.status(404).json({ error: "Category not found" }); return; }
+    await prisma.category.delete({ where: { id } });
+    res.json({ message: "Category deleted" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete category" });
+  }
+});
+
+app.post("/api/share/generate", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const token = randomBytes(16).toString("hex");
+    await prisma.user.update({ where: { id: userId }, data: { shareToken: token } });
+    res.json({ token });
+  } catch { res.status(500).json({ error: "Failed to generate share link" }); }
+});
+
+app.get("/api/share/:token", async (req: Request<{ token: string }>, res: Response) => {
+  const { token } = req.params;
+  try {
+    const user = await prisma.user.findUnique({ where: { shareToken: token } });
+    if (!user) { res.status(404).json({ error: "Share link not found" }); return; }
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: user.id },
+      orderBy: { transactionDate: "desc" },
+      take: 100,
+    });
+    const budgets = await prisma.budget.findMany({ where: { userId: user.id } });
+    const totalExpenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    const totalIncome = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    res.json({
+      totalExpenses,
+      totalIncome,
+      netIncome: totalIncome - totalExpenses,
+      transactionCount: transactions.length,
+      budgets,
+      recentTransactions: transactions.slice(0, 10),
+    });
+  } catch { res.status(500).json({ error: "Failed to load share data" }); }
+});
+
+app.delete("/api/share", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { shareToken: null } });
+    res.json({ message: "Share link revoked" });
+  } catch { res.status(500).json({ error: "Failed to revoke share link" }); }
 });
 
 app.post(

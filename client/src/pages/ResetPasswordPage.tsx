@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
-import logo from "../assets/logoiq.png";
+import logo from "../assets/logoiq.svg";
 import { usersApi } from "../services/api";
 
 export default function ResetPasswordPage() {

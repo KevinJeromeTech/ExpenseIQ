@@ -4,12 +4,13 @@ export type Transaction = {
   amount: number;
   category: string;
   createdAt: string;
+  transactionDate?: string;
   updatedAt?: string;
   userId?: number;
   isRecurring?: boolean;
   frequency?: string | null;
   notes?: string | null;
-  type?: string;
+  type?: "expense" | "income";
 };
 
 export type Budget = {
@@ -17,7 +18,7 @@ export type Budget = {
   category: string;
   limit: number;
   month: string;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
   userId?: number;
 };
@@ -29,4 +30,19 @@ export type Insight = {
 
 export type InsightsResponse = {
   insights: Insight[];
+};
+
+export type Category = {
+  id: number;
+  name: string;
+  userId?: number;
+};
+
+export type ShareSnapshot = {
+  totalExpenses: number;
+  totalIncome: number;
+  netIncome: number;
+  transactionCount: number;
+  budgets: Budget[];
+  recentTransactions: Transaction[];
 };

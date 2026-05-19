@@ -1,83 +1,272 @@
+import { useState, useMemo, useEffect, useCallback } from "react";
+import toast from "react-hot-toast";
+import { useAuthContext } from "../contexts/AuthContext";
+import { useTransactions } from "../hooks/useTransactions";
+import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
 
-type TransactionsPageProps = {
-  merchant: string;
-  setMerchant: React.Dispatch<React.SetStateAction<string>>;
-  amount: string;
-  setAmount: React.Dispatch<React.SetStateAction<string>>;
-  category: string;
-  setCategory: React.Dispatch<React.SetStateAction<string>>;
-  recurring: string;
-  setRecurring: React.Dispatch<React.SetStateAction<string>>;
-  notes: string;
-  setNotes: React.Dispatch<React.SetStateAction<string>>;
-  txType: "expense" | "income";
-  setTxType: React.Dispatch<React.SetStateAction<"expense" | "income">>;
-  editingId: number | null;
-  setEditingId: React.Dispatch<React.SetStateAction<number | null>>;
-  selectedCategory: string;
-  setSelectedCategory: React.Dispatch<React.SetStateAction<string>>;
-  searchQuery: string;
-  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
-  sortOption: string;
-  setSortOption: React.Dispatch<React.SetStateAction<string>>;
-  isSavingTransaction: boolean;
-  isLoading: boolean;
-  addTransaction: (e: React.FormEvent) => Promise<void>;
-  seedDemoTransactions: () => Promise<void>;
-  exportTransactionsCSV: () => void;
-  importCSV: (file: File) => Promise<void>;
-  filteredTransactions?: Transaction[];
-  startEditing: (transaction: Transaction) => void;
-  deleteTransaction: (id: number) => Promise<void>;
-  selectedIds: Set<number>;
-  toggleSelected: (id: number) => void;
-  clearSelection: () => void;
-  handleBulkDelete: () => Promise<void>;
-  isBulkDeleting: boolean;
-  merchantSuggestions: string[];
-};
+const todayStr = () => new Date().toISOString().split("T")[0];
 
-export default function TransactionsPage({
-  merchant,
-  setMerchant,
-  amount,
-  setAmount,
-  category,
-  setCategory,
-  recurring,
-  setRecurring,
-  notes,
-  setNotes,
-  txType,
-  setTxType,
-  editingId,
-  setEditingId,
-  selectedCategory,
-  setSelectedCategory,
-  searchQuery,
-  setSearchQuery,
-  sortOption,
-  setSortOption,
-  isSavingTransaction,
-  isLoading,
-  addTransaction,
-  seedDemoTransactions,
-  exportTransactionsCSV,
-  importCSV,
-  filteredTransactions = [],
-  startEditing,
-  deleteTransaction,
-  selectedIds,
-  toggleSelected,
-  clearSelection,
-  handleBulkDelete,
-  isBulkDeleting,
-  merchantSuggestions,
-}: TransactionsPageProps) {
+const DEMO_TRANSACTIONS = [
+  { merchant: "Whole Foods", amount: 87.43, category: "Food" },
+  { merchant: "Uber", amount: 24.5, category: "Transport" },
+  { merchant: "Netflix", amount: 15.99, category: "Entertainment" },
+  { merchant: "Amazon", amount: 134.0, category: "Shopping" },
+  { merchant: "Electric Bill", amount: 95.0, category: "Bills" },
+  { merchant: "Chipotle", amount: 12.75, category: "Food" },
+  { merchant: "Spotify", amount: 9.99, category: "Entertainment" },
+  { merchant: "Shell Gas", amount: 58.2, category: "Transport" },
+];
+
+export default function TransactionsPage() {
+  const { token, onUnauthorized } = useAuthContext();
+  const {
+    transactions,
+    isLoading,
+    isSaving,
+    createTransaction,
+    updateTransaction,
+    removeTransaction,
+    bulkDeleteTransactions,
+    isBulkDeleting,
+  } = useTransactions({ token, onUnauthorized });
+
+  const { categories, expenseCategories, incomeCategories, addCategory, removeCategory } = useCategories({ token, onUnauthorized });
+
+  // Form state
+  const [merchant, setMerchant] = useState("");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("Shopping");
+  const [recurring, setRecurring] = useState("none");
+  const [transactionDate, setTransactionDate] = useState(todayStr());
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [transactionType, setTransactionType] = useState<"expense" | "income">("expense");
+
+  // Category management state
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  // Filter / sort state
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("newest");
+  const [dateFilter, setDateFilter] = useState<"all" | "7d" | "30d">("all");
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const resetForm = useCallback(() => {
+    setMerchant("");
+    setAmount("");
+    setCategory("Shopping");
+    setRecurring("none");
+    setTransactionDate(todayStr());
+    setEditingId(null);
+    setNotes("");
+    setTransactionType("expense");
+  }, []);
+
+  // Escape key to cancel edit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && editingId !== null) {
+        resetForm();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingId, resetForm]);
+
+  const merchantSuggestions = useMemo(
+    () => Array.from(new Set(transactions.map((t) => t.merchant))),
+    [transactions]
+  );
+
+  const filteredTransactions = useMemo(() => {
+    let list = [...transactions];
+    if (selectedCategory !== "All") {
+      list = list.filter((t) => t.category === selectedCategory);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((t) => t.merchant.toLowerCase().includes(q));
+    }
+    if (dateFilter !== "all") {
+      const days = dateFilter === "7d" ? 7 : 30;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+      list = list.filter(t => new Date(t.transactionDate ?? t.createdAt) >= cutoff);
+    }
+    switch (sortOption) {
+      case "oldest":
+        list.sort(
+          (a, b) =>
+            new Date(a.transactionDate ?? a.createdAt).getTime() -
+            new Date(b.transactionDate ?? b.createdAt).getTime()
+        );
+        break;
+      case "highest":
+        list.sort((a, b) => b.amount - a.amount);
+        break;
+      case "lowest":
+        list.sort((a, b) => a.amount - b.amount);
+        break;
+      default: // newest
+        list.sort(
+          (a, b) =>
+            new Date(b.transactionDate ?? b.createdAt).getTime() -
+            new Date(a.transactionDate ?? a.createdAt).getTime()
+        );
+    }
+    return list;
+  }, [transactions, selectedCategory, searchQuery, sortOption, dateFilter]);
+
+  const addTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!merchant.trim() || !amount) {
+      toast.error("Merchant and amount are required.");
+      return;
+    }
+    const payload = {
+      merchant: merchant.trim(),
+      amount: Number(amount),
+      category,
+      isRecurring: recurring !== "none",
+      frequency: recurring !== "none" ? recurring : null,
+      transactionDate: new Date(transactionDate).toISOString(),
+      notes: notes || null,
+      type: transactionType,
+    };
+    try {
+      if (editingId !== null) {
+        await updateTransaction(editingId, payload);
+        toast.success("Transaction updated!");
+      } else {
+        await createTransaction(payload);
+        toast.success("Transaction added!");
+      }
+      resetForm();
+    } catch {
+      // error handled in hook
+    }
+  };
+
+  const startEditing = (t: Transaction) => {
+    setEditingId(t.id);
+    setMerchant(t.merchant);
+    setAmount(String(t.amount));
+    setCategory(t.category);
+    setRecurring(t.frequency ?? "none");
+    const dateStr = (t.transactionDate ?? t.createdAt).split("T")[0];
+    setTransactionDate(dateStr);
+    setNotes(t.notes ?? "");
+    setTransactionType(t.type === "income" ? "income" : "expense");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const deleteTransaction = async (id: number) => {
+    try {
+      await removeTransaction(id);
+      toast.success("Transaction deleted.");
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    } catch {
+      // error handled in hook
+    }
+  };
+
+  const seedDemoTransactions = async () => {
+    try {
+      for (const demo of DEMO_TRANSACTIONS) {
+        await createTransaction({ ...demo, isRecurring: false });
+      }
+      toast.success("Demo transactions added!");
+    } catch {
+      // error handled in hook
+    }
+  };
+
+  const exportTransactionsCSV = () => {
+    if (transactions.length === 0) {
+      toast.error("No transactions to export.");
+      return;
+    }
+    const header = "Merchant,Amount,Category,Date,Recurring,Frequency,Notes,Type";
+    const rows = transactions.map((t) =>
+      [
+        `"${t.merchant}"`,
+        t.amount.toFixed(2),
+        t.category,
+        new Date(t.transactionDate ?? t.createdAt).toLocaleDateString(),
+        t.isRecurring ? "Yes" : "No",
+        t.frequency ?? "",
+        `"${t.notes ?? ""}"`,
+        t.type ?? "expense",
+      ].join(",")
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "transactions.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.trim().split("\n").slice(1);
+    let imported = 0;
+    for (const line of lines) {
+      const cols = line.split(",").map(c => c.replace(/^"|"$/g, "").trim());
+      const [merchant, amountStr, category, date, , noteVal] = cols;
+      const amount = parseFloat(amountStr ?? "");
+      if (!merchant || isNaN(amount)) continue;
+      try {
+        await createTransaction({ merchant, amount, category: category || "Shopping",
+          transactionDate: date ? new Date(date).toISOString() : undefined,
+          notes: noteVal || null });
+        imported++;
+      } catch { /* skip bad rows */ }
+    }
+    toast.success(`Imported ${imported} transaction(s)`);
+    e.target.value = "";
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await addCategory(newCategoryName.trim());
+      setNewCategoryName("");
+      toast.success("Category added!");
+    } catch { /* handled in hook */ }
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await bulkDeleteTransactions(Array.from(selectedIds));
+      toast.success(`${selectedIds.size} transaction(s) deleted.`);
+      clearSelection();
+    } catch {
+      // error handled in hook
+    }
+  };
+
   const allIds = filteredTransactions.map((t) => t.id);
   const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
-
   const toggleSelectAll = () => {
     if (isAllSelected) {
       clearSelection();
@@ -86,24 +275,26 @@ export default function TransactionsPage({
     }
   };
 
+  const currentCategories = transactionType === "income" ? incomeCategories : expenseCategories;
+
   return (
     <section className="content-grid">
       <div className="card">
         <h3>{editingId !== null ? "Edit Transaction" : "Add Transaction"}</h3>
 
-        <form className="transaction-form" onSubmit={addTransaction}>
+        <form className="transaction-form" onSubmit={(e) => void addTransaction(e)}>
           <div className="type-toggle">
             <button
               type="button"
-              className={`type-btn ${txType === "expense" ? "type-btn-expense active" : ""}`}
-              onClick={() => setTxType("expense")}
+              className={`type-btn ${transactionType === "expense" ? "active expense" : ""}`}
+              onClick={() => { setTransactionType("expense"); setCategory(expenseCategories[0]?.name ?? "Shopping"); }}
             >
               Expense
             </button>
             <button
               type="button"
-              className={`type-btn ${txType === "income" ? "type-btn-income active" : ""}`}
-              onClick={() => setTxType("income")}
+              className={`type-btn ${transactionType === "income" ? "active income" : ""}`}
+              onClick={() => { setTransactionType("income"); setCategory(incomeCategories[0]?.name ?? "Salary"); }}
             >
               Income
             </button>
@@ -137,15 +328,36 @@ export default function TransactionsPage({
             />
           </label>
 
+          <div className="form-group">
+            <label htmlFor="transactionDate">Date</label>
+            <input
+              id="transactionDate"
+              type="date"
+              className="form-input"
+              value={transactionDate}
+              onChange={(e) => setTransactionDate(e.target.value)}
+              max={todayStr()}
+            />
+          </div>
+
           <label>
             Category
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="Shopping">Shopping</option>
-              <option value="Food">Food</option>
-              <option value="Transport">Transport</option>
-              <option value="Bills">Bills</option>
-              <option value="Entertainment">Entertainment</option>
+              {currentCategories.map(c => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
             </select>
+          </label>
+
+          <label>
+            Notes (optional)
+            <textarea
+              placeholder="Add a note…"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              style={{ resize: "vertical" }}
+            />
           </label>
 
           <label>
@@ -157,23 +369,12 @@ export default function TransactionsPage({
             </select>
           </label>
 
-          <label>
-            Notes (optional)
-            <textarea
-              className="notes-input"
-              placeholder="Add a note..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-            />
-          </label>
-
           <button
             type="submit"
             className={`primary-button ${editingId !== null ? "edit-mode" : ""}`}
-            disabled={isSavingTransaction}
+            disabled={isSaving}
           >
-            {isSavingTransaction
+            {isSaving
               ? "Processing..."
               : editingId !== null
               ? "Update Transaction"
@@ -184,13 +385,7 @@ export default function TransactionsPage({
             <button
               type="button"
               className="cancel-button"
-              onClick={() => {
-                setEditingId(null);
-                setMerchant("");
-                setAmount("");
-                setCategory("Shopping");
-                setRecurring("none");
-              }}
+              onClick={resetForm}
             >
               Cancel
             </button>
@@ -199,8 +394,8 @@ export default function TransactionsPage({
           <button
             type="button"
             className="cancel-button"
-            onClick={seedDemoTransactions}
-            disabled={isSavingTransaction}
+            onClick={() => void seedDemoTransactions()}
+            disabled={isSaving}
           >
             Add Demo Transactions
           </button>
@@ -214,19 +409,48 @@ export default function TransactionsPage({
             Export CSV
           </button>
 
-          <label className="csv-import-label">
+          <input
+            type="file"
+            accept=".csv"
+            id="csv-import"
+            style={{ display: "none" }}
+            onChange={e => void handleCSVImport(e)}
+          />
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => document.getElementById("csv-import")?.click()}
+          >
             Import CSV
-            <input
-              type="file"
-              accept=".csv"
-              className="csv-import-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) { void importCSV(file); e.target.value = ""; }
-              }}
-            />
-          </label>
+          </button>
         </form>
+
+        <details className="manage-categories">
+          <summary>Manage Categories</summary>
+          <div className="category-list">
+            {categories.map(c => (
+              <div key={c.id} className="category-item">
+                <span>{c.name}</span>
+                <button
+                  type="button"
+                  className="delete-button small"
+                  onClick={() => void removeCategory(c.id)}
+                  aria-label={`Remove ${c.name} category`}
+                >×</button>
+              </div>
+            ))}
+          </div>
+          <div className="category-add">
+            <input
+              type="text"
+              placeholder="New category…"
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleAddCategory(); } }}
+            />
+            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>Add</button>
+          </div>
+        </details>
       </div>
 
       <section className="card transactions-card">
@@ -253,11 +477,9 @@ export default function TransactionsPage({
             disabled={isLoading}
           >
             <option value="All">All Categories</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Food">Food</option>
-            <option value="Transport">Transport</option>
-            <option value="Bills">Bills</option>
-            <option value="Entertainment">Entertainment</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
           </select>
 
           <select
@@ -280,6 +502,20 @@ export default function TransactionsPage({
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isLoading}
           />
+
+          <div className="filter-chip-group">
+            {(["all", "7d", "30d"] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                className={`type-btn${dateFilter === f ? " active expense" : ""}`}
+                onClick={() => setDateFilter(f)}
+                style={{ padding: "4px 10px", fontSize: "0.8rem" }}
+              >
+                {f === "all" ? "All Time" : f === "7d" ? "7 Days" : "30 Days"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {selectedIds.size > 0 && (
@@ -288,7 +524,7 @@ export default function TransactionsPage({
             <button
               type="button"
               className="delete-button"
-              onClick={handleBulkDelete}
+              onClick={() => void handleBulkDelete()}
               disabled={isBulkDeleting}
             >
               {isBulkDeleting ? "Deleting…" : "Delete Selected"}
@@ -330,27 +566,27 @@ export default function TransactionsPage({
                 </label>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <p className="merchant">{t.merchant}</p>
+                  <p className="merchant">
+                    {t.merchant}
                     {t.type === "income" && <span className="income-badge">Income</span>}
-                  </div>
+                  </p>
                   <p className="category-badge" data-category={t.category}>{t.category}</p>
                   <p className="transaction-date">
-                    {new Date(t.createdAt).toLocaleDateString("en-US", {
+                    {new Date(t.transactionDate ?? t.createdAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </p>
-                  {t.notes && <p className="transaction-notes">{t.notes}</p>}
                   {t.isRecurring && (
                     <p className="recurring-badge">🔁 {t.frequency}</p>
                   )}
+                  {t.notes && <p className="transaction-note">{t.notes}</p>}
                 </div>
 
                 <div className="transaction-actions">
-                  <p className={`amount ${t.type === "income" ? "income-amount" : ""}`}>
-                    {t.type === "income" ? "+" : ""}${t.amount.toFixed(2)}
+                  <p className={`amount${t.type === "income" ? " positive" : ""}`}>
+                    {t.type === "income" ? "+" : "-"}${t.amount.toFixed(2)}
                   </p>
 
                   <button

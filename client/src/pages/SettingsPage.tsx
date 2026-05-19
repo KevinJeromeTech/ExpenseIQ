@@ -2,15 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { usersApi } from "../services/api";
-import type { AuthUser } from "../hooks/useAuth";
+import { useAuthContext } from "../contexts/AuthContext";
 
 type SettingsPageProps = {
-  token: string;
-  user: AuthUser;
   onDeleteSuccess: () => void;
 };
 
-export default function SettingsPage({ token, user, onDeleteSuccess }: SettingsPageProps) {
+export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
+  const { token, user } = useAuthContext();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,14 +19,14 @@ export default function SettingsPage({ token, user, onDeleteSuccess }: SettingsP
 
   const { data: profile } = useQuery({
     queryKey: ["user-profile", token],
-    queryFn: () => usersApi.getMe(token),
+    queryFn: () => usersApi.getMe(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 
   const changePasswordMutation = useMutation({
     mutationFn: () =>
-      usersApi.changePassword(token, { currentPassword, newPassword, confirmPassword }),
+      usersApi.changePassword(token!, { currentPassword, newPassword, confirmPassword }),
     onSuccess: () => {
       toast.success("Password updated!");
       setCurrentPassword("");
@@ -38,7 +37,7 @@ export default function SettingsPage({ token, user, onDeleteSuccess }: SettingsP
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: () => usersApi.deleteAccount(token, { password: deletePassword }),
+    mutationFn: () => usersApi.deleteAccount(token!, { password: deletePassword }),
     onSuccess: () => {
       toast.success("Account deleted.");
       onDeleteSuccess();
@@ -81,7 +80,7 @@ export default function SettingsPage({ token, user, onDeleteSuccess }: SettingsP
         <h3>Profile</h3>
         <div className="settings-row">
           <span className="settings-label">Email</span>
-          <span className="settings-value">{user.email}</span>
+          <span className="settings-value">{user?.email}</span>
         </div>
         {profile?.createdAt && (
           <div className="settings-row">

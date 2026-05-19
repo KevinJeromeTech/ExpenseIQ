@@ -51,11 +51,11 @@ export default function AnalyticsPage() {
   }, [analyticsTransactions]);
 
   const cumulativeTrendData = useMemo(() => {
-    let running = 0;
-    return trendData.map(({ date, amount }) => {
-      running += amount;
-      return { date, total: Math.round(running * 100) / 100 };
-    });
+    return trendData.reduce<{ date: string; total: number }[]>((acc, { date, amount }) => {
+      const prev = acc[acc.length - 1]?.total ?? 0;
+      acc.push({ date, total: Math.round((prev + amount) * 100) / 100 });
+      return acc;
+    }, []);
   }, [trendData]);
 
   const categoryPercentages = useMemo(() => {

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../contexts/AuthContext";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
@@ -21,6 +22,7 @@ const DEMO_TRANSACTIONS = [
 
 export default function TransactionsPage() {
   const { token, onUnauthorized } = useAuthContext();
+  const { fmt } = usePreferencesContext();
   const {
     transactions,
     isLoading,
@@ -601,7 +603,7 @@ export default function TransactionsPage() {
 
                 <div className="transaction-right">
                   <p className={`amount${t.type === "income" ? " positive" : ""}`}>
-                    {t.type === "income" ? "+" : "−"}${t.amount.toFixed(2)}
+                    {t.type === "income" ? "+" : "−"}{fmt(t.amount)}
                   </p>
                   <div className="transaction-actions">
                     <button

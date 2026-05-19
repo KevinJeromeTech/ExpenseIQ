@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import "./App.css";
 import { useAuth } from "./hooks/useAuth";
 import { AuthContext } from "./contexts/AuthContext";
+import { usePreferencesContext } from "./contexts/PreferencesContext";
 import LoginForm from "./components/LoginForm";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
@@ -20,6 +21,7 @@ function App() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { token, user, onLoginSuccess, handleUnauthorized, logout } = useAuth();
+  const { prefs } = usePreferencesContext();
 
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
@@ -54,7 +56,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to={prefs.defaultPage} replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />

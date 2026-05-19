@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PreferencesContext } from "./contexts/PreferencesContext";
+import { usePreferences } from "./hooks/usePreferences";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -24,10 +26,18 @@ const queryClient = new QueryClient({
 });
 
 if ("serviceWorker" in navigator) {
-  // Unregister any previously installed service workers to prevent stale cache issues
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(reg => reg.unregister());
   });
+}
+
+function PreferencesProvider({ children }: { children: React.ReactNode }) {
+  const value = usePreferences();
+  return (
+    <PreferencesContext.Provider value={value}>
+      {children}
+    </PreferencesContext.Provider>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -35,17 +45,19 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <App />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "#0f172a",
-                color: "#f5f7fb",
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-              },
-            }}
-          />
+          <PreferencesProvider>
+            <App />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: "#0f172a",
+                  color: "#f5f7fb",
+                  border: "1px solid rgba(148, 163, 184, 0.2)",
+                },
+              }}
+            />
+          </PreferencesProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

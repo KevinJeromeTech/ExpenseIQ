@@ -11,12 +11,14 @@ import {
   Line,
 } from "recharts";
 import { useAuthContext } from "../contexts/AuthContext";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 
 type DateRange = "7d" | "30d" | "all";
 
 export default function AnalyticsPage() {
   const { token, onUnauthorized } = useAuthContext();
+  const { fmt } = usePreferencesContext();
   const { transactions, isLoading } = useTransactions({ token, onUnauthorized });
 
   const [dateRange, setDateRange] = useState<DateRange>("30d");
@@ -75,12 +77,12 @@ export default function AnalyticsPage() {
 
     const total = analyticsTransactions.reduce((sum, t) => sum + t.amount, 0);
     const avg = total / analyticsTransactions.length;
-    insights.push(`Average transaction: $${avg.toFixed(2)}`);
+    insights.push(`Average transaction: ${fmt(avg)}`);
 
     if (categoryChartData.length > 0) {
       const top = [...categoryChartData].sort((a, b) => b.total - a.total)[0];
       insights.push(
-        `Top category: ${top.category} at $${top.total.toFixed(2)} (${Math.round((top.total / total) * 100)}% of spend)`
+        `Top category: ${top.category} at ${fmt(top.total)} (${Math.round((top.total / total) * 100)}% of spend)`
       );
     }
 
@@ -88,7 +90,7 @@ export default function AnalyticsPage() {
       (max, t) => (t.amount > max.amount ? t : max),
       analyticsTransactions[0]
     );
-    insights.push(`Largest single purchase: $${maxTx.amount.toFixed(2)} at ${maxTx.merchant}`);
+    insights.push(`Largest single purchase: ${fmt(maxTx.amount)} at ${maxTx.merchant}`);
 
     if (trendData.length >= 2) {
       const last = trendData[trendData.length - 1].amount;

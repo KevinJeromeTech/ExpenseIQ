@@ -1889,6 +1889,42 @@ img {
   color: #0f172a;
 }
 
+/* Light mode text contrast fixes */
+[data-theme="light"] .signed-in-text {
+  color: #475569;
+}
+
+[data-theme="light"] .stat-value {
+  color: #0f172a;
+  text-shadow: none;
+}
+
+[data-theme="light"] .stat-label {
+  color: #475569;
+}
+
+[data-theme="light"] .stat-sub {
+  color: #64748b;
+}
+
+[data-theme="light"] .hero-subtitle {
+  color: #475569;
+}
+
+[data-theme="light"] .chart-section-label {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .section-eyebrow,
+[data-theme="light"] .card-eyebrow {
+  color: #475569;
+}
+
+[data-theme="light"] .empty-state,
+[data-theme="light"] .insight-item {
+  color: #475569;
+}
+
 /* =========================
    BULK ACTIONS
 ========================= */

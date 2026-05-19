@@ -13,6 +13,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        var el = document.getElementById('root');
+        if (el && !el.children.length) {
+          el.innerHTML = '<div style="padding:2rem;color:#f87171;font-family:monospace;background:#0f172a;min-height:100vh"><h2>App failed to load</h2><pre style="white-space:pre-wrap">' + (e.message || 'Unknown error') + '\n' + (e.filename || '') + ':' + e.lineno + '</pre></div>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var el = document.getElementById('root');
+        if (el && !el.children.length) {
+          el.innerHTML = '<div style="padding:2rem;color:#f87171;font-family:monospace;background:#0f172a;min-height:100vh"><h2>App failed to load</h2><pre style="white-space:pre-wrap">' + (e.reason || 'Unhandled promise rejection') + '</pre></div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

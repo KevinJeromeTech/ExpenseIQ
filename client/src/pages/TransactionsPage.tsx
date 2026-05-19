@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../contexts/AuthContext";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
+import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag } from "lucide-react";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -20,6 +22,7 @@ const DEMO_TRANSACTIONS = [
 
 export default function TransactionsPage() {
   const { token, onUnauthorized } = useAuthContext();
+  const { fmt } = usePreferencesContext();
   const {
     transactions,
     isLoading,
@@ -374,6 +377,13 @@ export default function TransactionsPage() {
             className={`primary-button ${editingId !== null ? "edit-mode" : ""}`}
             disabled={isSaving}
           >
+            {isSaving ? (
+              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : editingId !== null ? (
+              <Pencil size={14} />
+            ) : (
+              <Plus size={14} />
+            )}
             {isSaving
               ? "Processing..."
               : editingId !== null
@@ -387,6 +397,7 @@ export default function TransactionsPage() {
               className="cancel-button"
               onClick={resetForm}
             >
+              <X size={14} />
               Cancel
             </button>
           )}
@@ -397,6 +408,7 @@ export default function TransactionsPage() {
             onClick={() => void seedDemoTransactions()}
             disabled={isSaving}
           >
+            <RefreshCw size={14} />
             Add Demo Transactions
           </button>
 
@@ -406,6 +418,7 @@ export default function TransactionsPage() {
             onClick={exportTransactionsCSV}
             disabled={isLoading}
           >
+            <Download size={14} />
             Export CSV
           </button>
 
@@ -421,6 +434,7 @@ export default function TransactionsPage() {
             className="secondary-button"
             onClick={() => document.getElementById("csv-import")?.click()}
           >
+            <Upload size={14} />
             Import CSV
           </button>
         </form>
@@ -448,7 +462,10 @@ export default function TransactionsPage() {
               onChange={e => setNewCategoryName(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleAddCategory(); } }}
             />
-            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>Add</button>
+            <button type="button" className="primary-button small" onClick={() => void handleAddCategory()}>
+              <Tag size={12} />
+              Add
+            </button>
           </div>
         </details>
       </div>
@@ -565,45 +582,47 @@ export default function TransactionsPage() {
                   />
                 </label>
 
-                <div style={{ flex: 1 }}>
+                <div className="transaction-info">
                   <p className="merchant">
                     {t.merchant}
                     {t.type === "income" && <span className="income-badge">Income</span>}
+                    {t.isRecurring && <span className="recurring-inline">🔁 {t.frequency}</span>}
                   </p>
-                  <p className="category-badge" data-category={t.category}>{t.category}</p>
-                  <p className="transaction-date">
-                    {new Date(t.transactionDate ?? t.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                  {t.isRecurring && (
-                    <p className="recurring-badge">🔁 {t.frequency}</p>
-                  )}
+                  <div className="transaction-meta">
+                    <span className="category-badge" data-category={t.category}>{t.category}</span>
+                    <span className="transaction-date">
+                      {new Date(t.transactionDate ?? t.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
                   {t.notes && <p className="transaction-note">{t.notes}</p>}
                 </div>
 
-                <div className="transaction-actions">
+                <div className="transaction-right">
                   <p className={`amount${t.type === "income" ? " positive" : ""}`}>
-                    {t.type === "income" ? "+" : "-"}${t.amount.toFixed(2)}
+                    {t.type === "income" ? "+" : "−"}{fmt(t.amount)}
                   </p>
-
-                  <button
-                    type="button"
-                    className="edit-button"
-                    onClick={() => startEditing(t)}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={() => void deleteTransaction(t.id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="transaction-actions">
+                    <button
+                      type="button"
+                      className="icon-button edit-icon"
+                      onClick={() => startEditing(t)}
+                      title="Edit transaction"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button delete-icon"
+                      onClick={() => void deleteTransaction(t.id)}
+                      title="Delete transaction"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

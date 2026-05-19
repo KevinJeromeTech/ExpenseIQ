@@ -1,17 +1,23 @@
 import { useState, useMemo } from "react";
 import { useAuthContext } from "../contexts/AuthContext";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useBudgets } from "../hooks/useBudgets";
 import { useInsights } from "../hooks/useInsights";
 import { shareApi } from "../services/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
+import {
+  TrendingUp, TrendingDown, DollarSign, Activity,
+  Target, Share2, Trophy, Zap, BarChart2, ArrowUpRight, ArrowDownRight,
+} from "lucide-react";
 
 const CATEGORIES = ["Food", "Transport", "Shopping", "Bills", "Entertainment"] as const;
 const COLORS = ["#f472b6","#34d399","#60a5fa","#fb923c","#a78bfa","#fbbf24","#38bdf8"];
 
 export default function DashboardPage() {
   const { token, user, onUnauthorized } = useAuthContext();
+  const { fmt } = usePreferencesContext();
 
   const { transactions, isLoading: isLoadingTransactions } = useTransactions({ token, onUnauthorized });
   const { budgets, savedMonthlyLimit, saveBudget, isSavingBudget } = useBudgets({ token, onUnauthorized });
@@ -200,25 +206,37 @@ export default function DashboardPage() {
 
       <section className="stats-grid">
         <div className="stat-card">
-          <p className="stat-label">Total Income</p>
-          <h2 className="stat-value positive">${totalIncome.toFixed(2)}</h2>
+          <div className="stat-icon-row">
+            <p className="stat-label">Total Income</p>
+            <TrendingUp size={18} className="stat-icon positive" />
+          </div>
+          <h2 className="stat-value positive">{fmt(totalIncome)}</h2>
           <p className="stat-sub">All time</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Total Expenses</p>
-          <h2 className="stat-value">${totalExpenses.toFixed(2)}</h2>
+          <div className="stat-icon-row">
+            <p className="stat-label">Total Expenses</p>
+            <TrendingDown size={18} className="stat-icon danger" />
+          </div>
+          <h2 className="stat-value">{fmt(totalExpenses)}</h2>
           <p className="stat-sub">All time</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Net Income</p>
-          <h2 className={`stat-value ${netIncome >= 0 ? "positive" : "danger"}`}>${netIncome.toFixed(2)}</h2>
+          <div className="stat-icon-row">
+            <p className="stat-label">Net Income</p>
+            <DollarSign size={18} className={`stat-icon ${netIncome >= 0 ? "positive" : "danger"}`} />
+          </div>
+          <h2 className={`stat-value ${netIncome >= 0 ? "positive" : "danger"}`}>{fmt(netIncome)}</h2>
           <p className="stat-sub">Income − Expenses</p>
         </div>
 
         <div className="stat-card">
-          <p className="stat-label">Transactions</p>
+          <div className="stat-icon-row">
+            <p className="stat-label">Transactions</p>
+            <Activity size={18} className="stat-icon" />
+          </div>
           <h2 className="stat-value">{transactions.length}</h2>
           <p className="stat-sub">Recorded</p>
         </div>
@@ -234,7 +252,7 @@ export default function DashboardPage() {
           <div className="report-item highlight">
             <span>Largest Purchase</span>
             <strong>
-              {monthlyReport.largestPurchase} · ${monthlyReport.largestAmount.toFixed(2)}
+              {monthlyReport.largestPurchase} · {fmt(monthlyReport.largestAmount)}
             </strong>
           </div>
 
@@ -246,13 +264,13 @@ export default function DashboardPage() {
           <div className="report-item">
             <span>Remaining</span>
             <strong className={remainingBudget >= 0 ? "positive" : "danger"}>
-              ${remainingBudget.toFixed(2)}
+              {fmt(remainingBudget)}
             </strong>
           </div>
 
           <div className="report-item">
             <span>Average Transaction</span>
-            <strong>${averageTransaction.toFixed(2)}</strong>
+            <strong>{fmt(averageTransaction)}</strong>
           </div>
 
           <div className="report-item">
@@ -270,13 +288,17 @@ export default function DashboardPage() {
 
       <section className="card budget-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1rem" }}>
-          <h3 style={{ margin: 0 }}>Monthly Budget</h3>
+          <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Target size={18} />
+            Monthly Budget
+          </h3>
           <button
             type="button"
             className="secondary-button"
             onClick={() => void handleGenerateShare()}
             disabled={isGeneratingShare}
           >
+            <Share2 size={14} />
             {isGeneratingShare ? "Generating…" : "Share Report"}
           </button>
         </div>
@@ -308,6 +330,7 @@ export default function DashboardPage() {
               onClick={() => void handleSaveMonthlyBudget()}
               disabled={isSavingBudget}
             >
+              <Target size={14} />
               {isSavingBudget ? "Saving..." : "Save Budget"}
             </button>
           </div>
@@ -315,18 +338,18 @@ export default function DashboardPage() {
           <div className="budget-stats">
             <div className="budget-row">
               <span>Budget</span>
-              <strong>${budgetAmount.toFixed(2)}</strong>
+              <strong>{fmt(budgetAmount)}</strong>
             </div>
 
             <div className="budget-row">
               <span>Spent</span>
-              <strong>${totalExpenses.toFixed(2)}</strong>
+              <strong>{fmt(totalExpenses)}</strong>
             </div>
 
             <div className="budget-row">
               <span>Remaining</span>
               <strong className={remainingBudget >= 0 ? "positive" : "danger"}>
-                ${remainingBudget.toFixed(2)}
+                {fmt(remainingBudget)}
               </strong>
             </div>
 
@@ -358,7 +381,10 @@ export default function DashboardPage() {
       </section>
 
       <section className="card budget-card">
-        <h3>Category Budgets</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <BarChart2 size={18} />
+          Category Budgets
+        </h3>
         <p className="budget-caption" style={{ marginBottom: "1rem" }}>
           Set spending limits per category for this month.
         </p>
@@ -375,10 +401,10 @@ export default function DashboardPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
                   <span className="budget-label">{cat}</span>
                   <span style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
-                    ${spent.toFixed(2)} spent
+                    {fmt(spent)} spent
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                   <input
                     className="budget-input"
                     type="number"
@@ -389,16 +415,15 @@ export default function DashboardPage() {
                     onChange={(e) =>
                       setCategoryBudgetInputs((prev) => ({ ...prev, [cat]: e.target.value }))
                     }
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                   />
                   <button
                     type="button"
-                    className="primary-button budget-button"
+                    className="primary-button btn-auto"
                     onClick={() => void handleSaveCategoryBudget(cat)}
                     disabled={isSaving || isSavingBudget}
-                    style={{ whiteSpace: "nowrap" }}
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    {isSaving ? "Saving…" : "Save"}
                   </button>
                 </div>
                 {limit > 0 && (
@@ -416,7 +441,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <p className="budget-caption">
-                      {percent.toFixed(1)}% of ${limit.toFixed(2)} {cat} budget used
+                      {percent.toFixed(1)}% of {fmt(limit)} {cat} budget used
                     </p>
                   </>
                 )}
@@ -449,7 +474,7 @@ export default function DashboardPage() {
               >
                 {categoryChartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip formatter={(v) => `$${Number(v ?? 0).toFixed(2)}`} />
+              <Tooltip formatter={(v) => fmt(Number(v ?? 0))} />
             </PieChart>
           </ResponsiveContainer>
         )}
@@ -468,10 +493,15 @@ export default function DashboardPage() {
             {momData.map(row => (
               <div key={row.category} className="mom-row">
                 <span className="mom-cat">{row.category}</span>
-                <span>${row.current.toFixed(2)}</span>
-                <span>${row.previous.toFixed(2)}</span>
-                <span className={row.change === null ? "" : row.change > 0 ? "danger" : "positive"}>
-                  {row.change === null ? "—" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(0)}%`}
+                <span>{fmt(row.current)}</span>
+                <span>{fmt(row.previous)}</span>
+                <span className={row.change === null ? "" : row.change > 0 ? "danger" : "positive"} style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                  {row.change === null ? "—" : (
+                    <>
+                      {row.change > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                      {`${row.change > 0 ? "+" : ""}${row.change.toFixed(0)}%`}
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -481,7 +511,10 @@ export default function DashboardPage() {
 
       <section className="card achievements-card">
         <p className="eyebrow">Achievements</p>
-        <h3>Your Milestones</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Trophy size={18} />
+          Your Milestones
+        </h3>
         {achievements.length === 0 ? (
           <p className="empty-state">Keep logging transactions to unlock achievements.</p>
         ) : (
@@ -499,7 +532,10 @@ export default function DashboardPage() {
 
       <section className="card insights-card">
         <p className="eyebrow">AI Insights</p>
-        <h3>Smart Financial Signals</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Zap size={18} />
+          Smart Financial Signals
+        </h3>
 
         {insights.length === 0 ? (
           <p className="empty-state">

@@ -593,31 +593,84 @@ img {
 .transactions-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .transaction-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px 18px;
+  gap: 12px;
+  padding: 14px 16px;
   border-radius: 14px;
   background: var(--surface-row);
   border: 1px solid var(--border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  margin-bottom: 10px;
   transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.transaction-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.transaction-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 5px;
 }
 
 .transaction-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
+/* Icon-only action buttons */
+.icon-button {
+  border: none;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.icon-button.edit-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+}
+
+.icon-button.edit-icon:hover {
+  background: rgba(59, 130, 246, 0.24);
+  transform: translateY(-1px);
+}
+
+.icon-button.delete-icon {
+  background: rgba(239, 68, 68, 0.10);
+  color: #fca5a5;
+}
+
+.icon-button.delete-icon:hover {
+  background: rgba(239, 68, 68, 0.22);
+  transform: translateY(-1px);
+}
+
+/* Keep old edit/delete-button styles for other uses */
 .delete-button {
   border: none;
   border-radius: 10px;
@@ -653,21 +706,38 @@ img {
 }
 
 .merchant {
-  margin: 0 0 6px;
+  margin: 0;
   font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .category-badge {
-  margin: 6px 0 0;
   display: inline-block;
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: rgba(59, 130, 246, 0.15);
   color: #93c5fd;
   border: 1px solid rgba(59, 130, 246, 0.22);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.recurring-inline {
+  font-size: 0.72rem;
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.1);
+  border-radius: 999px;
+  padding: 2px 7px;
+  white-space: nowrap;
 }
 
 .category-badge[data-category="Food"] {
@@ -695,16 +765,19 @@ img {
 }
 
 .transaction-date {
-  margin: 4px 0 0;
   font-size: 0.74rem;
-  color: #475569;
-  letter-spacing: 0.02em;
+  color: #64748b;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .amount {
   margin: 0;
   font-weight: 700;
   font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: #f1f5f9;
 }
 
 .empty-state {
@@ -761,15 +834,19 @@ img {
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
+  align-items: center;
   min-width: 0;
 }
 
 .filter-select {
-  width: 220px;
+  min-width: 130px;
+  max-width: 180px;
+  flex: 1;
 }
 
 .search-input {
-  flex: 1;
+  flex: 2;
+  min-width: 120px;
 }
 
 .cancel-button {
@@ -913,11 +990,13 @@ img {
     height: 76px;
   }
 
-  .filter-row,
-  .transaction-row,
-  .transaction-actions {
+  .filter-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .transaction-row {
+    align-items: flex-start;
   }
 
   .filter-select {
@@ -2004,6 +2083,47 @@ img {
 
 [data-theme="light"] .budget-label {
   color: #475569;
+}
+
+[data-theme="light"] .transaction-row {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .transaction-row:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+}
+
+[data-theme="light"] .merchant {
+  color: #0f172a;
+}
+
+[data-theme="light"] .transaction-date {
+  color: #64748b;
+}
+
+[data-theme="light"] .amount {
+  color: #0f172a;
+}
+
+[data-theme="light"] .transaction-note {
+  color: #64748b;
+}
+
+[data-theme="light"] .icon-button.edit-icon {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+[data-theme="light"] .icon-button.delete-icon {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+[data-theme="light"] .bulk-action-bar {
+  background: rgba(59, 130, 246, 0.07);
 }
 
 /* =========================

@@ -1,4 +1,4 @@
-const CACHE = "expenseiq-v1";
+const CACHE = "expenseiq-v2";
 const PRECACHE = ["/", "/index.html"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));

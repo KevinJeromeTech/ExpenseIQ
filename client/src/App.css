@@ -2235,7 +2235,7 @@ img {
   min-width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 4px;
 }
 
 /* ── Avatar ── */
@@ -2437,14 +2437,14 @@ img {
   font-size: 1rem;
   font-weight: 700;
   color: #e2e8f0;
-  margin: 0;
+  margin: 0 0 10px;
 }
 
 .settings-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--border);
 }
 

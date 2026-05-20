@@ -2257,7 +2257,11 @@ img {
   cursor: pointer;
   overflow: hidden;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: border-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .settings-avatar-btn:hover {
@@ -2300,7 +2304,15 @@ img {
 }
 
 .settings-avatar-input {
-  display: none;
+  /* Visually hidden but not display:none — required for iOS Safari to open file picker */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .settings-avatar-remove {
@@ -2361,6 +2373,60 @@ img {
   .settings-signout-btn {
     margin-left: 0;
     align-self: center;
+  }
+
+  /* Larger avatar on mobile for easier tapping */
+  .settings-avatar-btn {
+    width: 96px;
+    height: 96px;
+  }
+
+  .settings-avatar-initial {
+    font-size: 2.4rem;
+  }
+
+  /* Inline edit: full-width on mobile */
+  .settings-inline-edit {
+    flex-wrap: wrap;
+  }
+
+  .settings-inline-input {
+    min-width: 0;
+    width: 100%;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .inline-edit-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Always show the edit pencil on mobile (no hover state) */
+  .inline-edit-trigger {
+    opacity: 1;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.08);
+  }
+
+  /* Date input: use full native height for touch */
+  input[type="date"].settings-inline-input {
+    height: 44px;
+    padding: 0 12px;
+  }
+
+  /* Pref rows: stack label and control vertically */
+  .pref-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .currency-options,
+  .page-options {
+    flex-wrap: wrap;
   }
 }
 

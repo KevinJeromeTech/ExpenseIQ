@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { usersApi } from "../services/api";
@@ -30,7 +30,6 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Editable profile fields
   const [editingName, setEditingName] = useState(false);
@@ -146,13 +145,16 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
 
   const handleRemoveAvatar = () => {
     setPrefs({ avatarUrl: "" });
-    if (fileInputRef.current) fileInputRef.current.value = "";
     toast.success("Profile picture removed.");
   };
 
   const formatBirthday = (iso: string | null) => {
     if (!iso) return null;
-    return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    // Parse date parts in local time to avoid UTC-to-local timezone shift
+    const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+      month: "long", day: "numeric", year: "numeric",
+    });
   };
 
   return (
@@ -168,14 +170,9 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
         {/* ── Profile ─────────────────────────── */}
         <div className="card settings-card settings-full">
           <div className="settings-profile-row">
-            {/* Avatar */}
+            {/* Avatar — label wraps input for reliable iOS Safari file picker */}
             <div className="settings-avatar-wrap">
-              <button
-                type="button"
-                className="settings-avatar-btn"
-                onClick={() => fileInputRef.current?.click()}
-                title="Change profile picture"
-              >
+              <label className="settings-avatar-btn" title="Change profile picture" aria-label="Change profile picture">
                 {prefs.avatarUrl ? (
                   <img src={prefs.avatarUrl} alt="Profile" className="settings-avatar-img" />
                 ) : (
@@ -184,17 +181,16 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
                 <span className="settings-avatar-overlay">
                   <Camera size={18} />
                 </span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="settings-avatar-input"
-                onChange={handleAvatarChange}
-              />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="settings-avatar-input"
+                  onChange={handleAvatarChange}
+                />
+              </label>
               {prefs.avatarUrl && (
                 <button type="button" className="settings-avatar-remove" onClick={handleRemoveAvatar}>
-                  Remove
+                  Remove photo
                 </button>
               )}
             </div>

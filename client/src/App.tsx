@@ -60,7 +60,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/settings" element={<SettingsPage onDeleteSuccess={handleLogout} onLogout={handleLogout} />} />
+            <Route path="/settings" element={<SettingsPage onDeleteSuccess={handleLogout} />} />
           </Route>
         </Routes>
       </Suspense>

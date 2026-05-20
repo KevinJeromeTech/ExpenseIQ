@@ -11,6 +11,8 @@ model User {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
   passwordHash       String
+  name               String?
+  birthday           DateTime?
   resetToken         String?
   resetTokenExpiry   DateTime?
   createdAt          DateTime  @default(now())

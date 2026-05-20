@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { usersApi } from "../services/api";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -7,12 +7,11 @@ import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { CURRENCY_OPTIONS } from "../hooks/usePreferences";
 import {
   User, Shield, Sliders, Bell, Trash2, KeyRound, DollarSign,
-  LayoutDashboard, List, BarChart2, BellRing, BellOff, Camera, LogOut,
+  LayoutDashboard, List, BarChart2, BellRing, BellOff, Camera, Pencil, Check, X,
 } from "lucide-react";
 
 type SettingsPageProps = {
   onDeleteSuccess: () => void;
-  onLogout: () => void;
 };
 
 const PAGE_OPTIONS = [
@@ -21,9 +20,10 @@ const PAGE_OPTIONS = [
   { value: "/analytics",    label: "Analytics",    Icon: BarChart2       },
 ] as const;
 
-export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPageProps) {
+export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const { token, user } = useAuthContext();
   const { prefs, setPrefs } = usePreferencesContext();
+  const queryClient = useQueryClient();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -32,6 +32,12 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Editable profile fields
+  const [editingName, setEditingName] = useState(false);
+  const [editingBirthday, setEditingBirthday] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftBirthday, setDraftBirthday] = useState("");
+
   const initial = user?.email?.[0]?.toUpperCase() ?? "?";
 
   const { data: profile } = useQuery({
@@ -39,6 +45,17 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
     queryFn: () => usersApi.getMe(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
+  });
+
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { name?: string; birthday?: string | null }) =>
+      usersApi.updateProfile(token!, data),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["user-profile", token], updated);
+      toast.success("Profile updated!");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to update profile"),
   });
 
   const changePasswordMutation = useMutation({
@@ -61,6 +78,30 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
     },
     onError: (err: Error) => toast.error(err.message || "Failed to delete account"),
   });
+
+  const startEditingName = () => {
+    setDraftName(profile?.name ?? "");
+    setEditingName(true);
+  };
+
+  const handleSaveName = () => {
+    updateProfileMutation.mutate({ name: draftName });
+    setEditingName(false);
+  };
+
+  const handleCancelName = () => setEditingName(false);
+
+  const startEditingBirthday = () => {
+    setDraftBirthday(profile?.birthday ? profile.birthday.slice(0, 10) : "");
+    setEditingBirthday(true);
+  };
+
+  const handleSaveBirthday = () => {
+    updateProfileMutation.mutate({ birthday: draftBirthday || null });
+    setEditingBirthday(false);
+  };
+
+  const handleCancelBirthday = () => setEditingBirthday(false);
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +150,11 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
     toast.success("Profile picture removed.");
   };
 
+  const formatBirthday = (iso: string | null) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
+
   return (
     <div className="settings-page">
       <div className="settings-hero">
@@ -117,10 +163,9 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
         <p className="settings-subtitle">Manage your account, preferences, and security.</p>
       </div>
 
-      {/* ── Settings grid ─────────────────────── */}
       <div className="settings-grid">
 
-        {/* ── Profile (full width) ─────────────── */}
+        {/* ── Profile ─────────────────────────── */}
         <div className="card settings-card settings-full">
           <div className="settings-profile-row">
             {/* Avatar */}
@@ -148,11 +193,7 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
                 onChange={handleAvatarChange}
               />
               {prefs.avatarUrl && (
-                <button
-                  type="button"
-                  className="settings-avatar-remove"
-                  onClick={handleRemoveAvatar}
-                >
+                <button type="button" className="settings-avatar-remove" onClick={handleRemoveAvatar}>
                   Remove
                 </button>
               )}
@@ -164,10 +205,79 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
                 <User size={16} />
                 Profile
               </h3>
+
+              {/* Email (read-only) */}
               <div className="settings-row">
                 <span className="settings-label">Email</span>
                 <span className="settings-value">{user?.email}</span>
               </div>
+
+              {/* Name */}
+              <div className="settings-row">
+                <span className="settings-label">Name</span>
+                {editingName ? (
+                  <div className="settings-inline-edit">
+                    <input
+                      type="text"
+                      className="settings-inline-input"
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Your name"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") handleCancelName(); }}
+                    />
+                    <button type="button" className="inline-edit-btn confirm" onClick={handleSaveName} title="Save">
+                      <Check size={14} />
+                    </button>
+                    <button type="button" className="inline-edit-btn cancel" onClick={handleCancelName} title="Cancel">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="settings-value-row">
+                    <span className="settings-value">{profile?.name || <span className="settings-value-placeholder">Not set</span>}</span>
+                    <button type="button" className="inline-edit-trigger" onClick={startEditingName} title="Edit name">
+                      <Pencil size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Birthday */}
+              <div className="settings-row">
+                <span className="settings-label">Birthday</span>
+                {editingBirthday ? (
+                  <div className="settings-inline-edit">
+                    <input
+                      type="date"
+                      className="settings-inline-input"
+                      value={draftBirthday}
+                      onChange={(e) => setDraftBirthday(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveBirthday(); if (e.key === "Escape") handleCancelBirthday(); }}
+                    />
+                    <button type="button" className="inline-edit-btn confirm" onClick={handleSaveBirthday} title="Save">
+                      <Check size={14} />
+                    </button>
+                    <button type="button" className="inline-edit-btn cancel" onClick={handleCancelBirthday} title="Cancel">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="settings-value-row">
+                    <span className="settings-value">
+                      {profile?.birthday
+                        ? formatBirthday(profile.birthday)
+                        : <span className="settings-value-placeholder">Not set</span>}
+                    </span>
+                    <button type="button" className="inline-edit-trigger" onClick={startEditingBirthday} title="Edit birthday">
+                      <Pencil size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Member since */}
               {profile?.createdAt && (
                 <div className="settings-row">
                   <span className="settings-label">Member since</span>
@@ -179,16 +289,6 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
                 </div>
               )}
             </div>
-
-            {/* Sign out — visible on all screen sizes */}
-            <button
-              type="button"
-              className="settings-signout-btn"
-              onClick={onLogout}
-            >
-              <LogOut size={15} />
-              Sign out
-            </button>
           </div>
         </div>
 
@@ -198,11 +298,8 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             <Sliders size={16} />
             Financial Preferences
           </h3>
-          <p className="settings-section-desc">
-            Customize how your financial data is displayed.
-          </p>
+          <p className="settings-section-desc">Customize how your financial data is displayed.</p>
 
-          {/* Currency */}
           <div className="pref-row">
             <div className="pref-label-group">
               <DollarSign size={14} className="pref-icon" />
@@ -227,7 +324,6 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             </div>
           </div>
 
-          {/* Default page */}
           <div className="pref-row">
             <div className="pref-label-group">
               <LayoutDashboard size={14} className="pref-icon" />
@@ -251,7 +347,6 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             </div>
           </div>
 
-          {/* Budget alert threshold */}
           <div className="pref-row pref-row-stack">
             <div className="pref-label-group">
               <Bell size={14} className="pref-icon" />
@@ -263,9 +358,7 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             <div className="threshold-control">
               <input
                 type="range"
-                min={50}
-                max={95}
-                step={5}
+                min={50} max={95} step={5}
                 value={prefs.budgetAlertPct}
                 className="threshold-slider"
                 onChange={(e) => setPrefs({ budgetAlertPct: Number(e.target.value) })}
@@ -281,9 +374,7 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             <Bell size={16} />
             Notifications
           </h3>
-          <p className="settings-section-desc">
-            Control which financial alerts you receive.
-          </p>
+          <p className="settings-section-desc">Control which financial alerts you receive.</p>
 
           <div className="pref-row">
             <div className="pref-label-group">
@@ -316,62 +407,28 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             <Shield size={16} />
             Security
           </h3>
-          <p className="settings-section-desc">
-            Use a strong, unique password. Minimum 8 characters.
-          </p>
+          <p className="settings-section-desc">Use a strong, unique password. Minimum 8 characters.</p>
           <form className="settings-form" onSubmit={handleChangePassword}>
             <label>
-              <span className="form-field-label">
-                <KeyRound size={13} />
-                Current Password
-              </span>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
-                autoComplete="current-password"
-              />
+              <span className="form-field-label"><KeyRound size={13} />Current Password</span>
+              <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" autoComplete="current-password" />
             </label>
             <label>
-              <span className="form-field-label">
-                <KeyRound size={13} />
-                New Password
-              </span>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min. 8 characters"
-                autoComplete="new-password"
-              />
+              <span className="form-field-label"><KeyRound size={13} />New Password</span>
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 8 characters" autoComplete="new-password" />
             </label>
             <label>
-              <span className="form-field-label">
-                <KeyRound size={13} />
-                Confirm New Password
-              </span>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat new password"
-                autoComplete="new-password"
-              />
+              <span className="form-field-label"><KeyRound size={13} />Confirm New Password</span>
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat new password" autoComplete="new-password" />
             </label>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={changePasswordMutation.isPending}
-              style={{ marginTop: "4px" }}
-            >
+            <button type="submit" className="primary-button" disabled={changePasswordMutation.isPending} style={{ marginTop: "4px" }}>
               <Shield size={14} />
               {changePasswordMutation.isPending ? "Updating…" : "Update Password"}
             </button>
           </form>
         </div>
 
-        {/* ── Danger Zone (full width) ──────────── */}
+        {/* ── Danger Zone ───────────────────────── */}
         <div className="card settings-card danger-zone-card settings-full">
           <h3 className="settings-section-heading danger-zone-title">
             <Trash2 size={16} />
@@ -381,39 +438,20 @@ export default function SettingsPage({ onDeleteSuccess, onLogout }: SettingsPage
             Deleting your account permanently removes all transactions and budgets. This cannot be undone.
           </p>
           {!showDeleteConfirm ? (
-            <button
-              type="button"
-              className="danger-button"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
+            <button type="button" className="danger-button" onClick={() => setShowDeleteConfirm(true)}>
               Delete Account
             </button>
           ) : (
             <form className="settings-form" onSubmit={handleDeleteAccount}>
               <label>
                 Confirm your password to continue
-                <input
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  placeholder="Enter your password"
-                  autoFocus
-                />
+                <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder="Enter your password" autoFocus />
               </label>
               <div className="settings-danger-actions">
-                <button
-                  type="submit"
-                  className="danger-button"
-                  disabled={deleteAccountMutation.isPending}
-                >
+                <button type="submit" className="danger-button" disabled={deleteAccountMutation.isPending}>
                   {deleteAccountMutation.isPending ? "Deleting…" : "Permanently Delete Account"}
                 </button>
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }}
-                  style={{ marginTop: 0 }}
-                >
+                <button type="button" className="cancel-button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} style={{ marginTop: 0 }}>
                   Cancel
                 </button>
               </div>

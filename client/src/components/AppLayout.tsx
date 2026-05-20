@@ -120,9 +120,6 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {theme === "dark" ? "☀" : "☾"}
           </button>
 
-          <button type="button" className="nav-logout" onClick={onLogout} aria-label="Sign out">
-            Sign out
-          </button>
         </div>
       </header>
 

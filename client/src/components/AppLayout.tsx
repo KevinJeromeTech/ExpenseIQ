@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import logo from "../assets/logoiq.svg";
 import { useTheme } from "../hooks/useTheme";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
+import { useAuthContext } from "../contexts/AuthContext";
+import { usersApi } from "../services/api";
 
 type AppLayoutProps = {
   userEmail: string;
@@ -77,6 +80,7 @@ function Avatar({ avatarUrl, initial, size = 36 }: { avatarUrl: string; initial:
 
 function UserMenu({
   userEmail,
+  displayName,
   avatarUrl,
   initial,
   theme,
@@ -85,6 +89,7 @@ function UserMenu({
   onLogout,
 }: {
   userEmail: string;
+  displayName: string | null | undefined;
   avatarUrl: string;
   initial: string;
   theme: string;
@@ -98,7 +103,7 @@ function UserMenu({
       <div className="nav-user-menu-header">
         <Avatar avatarUrl={avatarUrl} initial={initial} size={42} />
         <div className="nav-user-menu-info">
-          <p className="nav-user-menu-name">{initial}</p>
+          <p className="nav-user-menu-name">{displayName || userEmail.split("@")[0]}</p>
           <p className="nav-user-menu-email">{userEmail}</p>
         </div>
       </div>
@@ -157,7 +162,15 @@ function UserMenu({
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
   const { theme, toggle } = useTheme();
   const { prefs } = usePreferencesContext();
+  const { token } = useAuthContext();
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";
+
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile", token],
+    queryFn: () => usersApi.getMe(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [showDesktopMenu, setShowDesktopMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -222,6 +235,7 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {showDesktopMenu && (
               <UserMenu
                 userEmail={userEmail}
+                displayName={profile?.name}
                 avatarUrl={prefs.avatarUrl}
                 initial={initial}
                 theme={theme}
@@ -265,6 +279,7 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {showMobileMenu && (
               <UserMenu
                 userEmail={userEmail}
+                displayName={profile?.name}
                 avatarUrl={prefs.avatarUrl}
                 initial={initial}
                 theme={theme}

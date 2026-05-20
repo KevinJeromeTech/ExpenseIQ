@@ -1,6 +1,11 @@
+import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import logo from "../assets/logoiq.svg";
-import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../contexts/ThemeContext";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
+import { useAuthContext } from "../contexts/AuthContext";
+import { usersApi } from "../services/api";
 
 type AppLayoutProps = {
   userEmail: string;
@@ -36,6 +41,16 @@ function IconAnalytics() {
   );
 }
 
+function IconSignOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 function IconSettings() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -45,9 +60,136 @@ function IconSettings() {
   );
 }
 
+function Avatar({ avatarUrl, initial, size = 36 }: { avatarUrl: string; initial: string; size?: number }) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt="Profile"
+        className="nav-avatar-img"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <span className="nav-avatar-initial" style={{ width: size, height: size, fontSize: size * 0.38 }}>
+      {initial}
+    </span>
+  );
+}
+
+function UserMenu({
+  userEmail,
+  displayName,
+  avatarUrl,
+  initial,
+  theme,
+  toggle,
+  onClose,
+  onLogout,
+}: {
+  userEmail: string;
+  displayName: string | null | undefined;
+  avatarUrl: string;
+  initial: string;
+  theme: string;
+  toggle: () => void;
+  onClose: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="nav-user-menu" role="menu">
+      {/* Header */}
+      <div className="nav-user-menu-header">
+        <Avatar avatarUrl={avatarUrl} initial={initial} size={42} />
+        <div className="nav-user-menu-info">
+          <p className="nav-user-menu-name">{displayName || userEmail.split("@")[0]}</p>
+          <p className="nav-user-menu-email">{userEmail}</p>
+        </div>
+      </div>
+
+      <div className="nav-user-menu-divider" />
+
+      {/* Navigation shortcuts */}
+      <NavLink to="/dashboard" className="nav-user-menu-item" role="menuitem" onClick={onClose}>
+        <IconDashboard />
+        Dashboard
+      </NavLink>
+      <NavLink to="/transactions" className="nav-user-menu-item" role="menuitem" onClick={onClose}>
+        <IconTransactions />
+        Transactions
+      </NavLink>
+      <NavLink to="/analytics" className="nav-user-menu-item" role="menuitem" onClick={onClose}>
+        <IconAnalytics />
+        Analytics
+      </NavLink>
+
+      <div className="nav-user-menu-divider" />
+
+      {/* Settings */}
+      <Link to="/settings" className="nav-user-menu-item" role="menuitem" onClick={onClose}>
+        <IconSettings />
+        Settings
+      </Link>
+
+      {/* Theme toggle */}
+      <button
+        type="button"
+        className="nav-user-menu-item"
+        role="menuitem"
+        onClick={() => { toggle(); onClose(); }}
+      >
+        <span style={{ fontSize: "15px", lineHeight: 1 }}>{theme === "dark" ? "☀" : "☾"}</span>
+        {theme === "dark" ? "Light mode" : "Dark mode"}
+      </button>
+
+      <div className="nav-user-menu-divider" />
+
+      {/* Sign out */}
+      <button
+        type="button"
+        className="nav-user-menu-item signout"
+        role="menuitem"
+        onClick={() => { onClose(); onLogout(); }}
+      >
+        <IconSignOut />
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle } = useThemeContext();
+  const { prefs } = usePreferencesContext();
+  const { token } = useAuthContext();
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";
+
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile", token],
+    queryFn: () => usersApi.getMe(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [showDesktopMenu, setShowDesktopMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDesktopMenu && !showMobileMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(e.target as Node)) {
+        setShowDesktopMenu(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setShowMobileMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showDesktopMenu, showMobileMenu]);
 
   return (
     <main className="dashboard">
@@ -78,23 +220,31 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
         </div>
 
         <div className="app-nav-right">
-          <NavLink to="/settings" className="app-nav-user" title="Account settings">
-            <span className="user-avatar">{initial}</span>
-            <span className="user-email">{userEmail}</span>
-          </NavLink>
+          {/* Desktop avatar + dropdown */}
+          <div className="nav-avatar-wrap" ref={desktopMenuRef}>
+            <button
+              type="button"
+              className="nav-avatar-btn"
+              aria-label="Account menu"
+              aria-expanded={showDesktopMenu}
+              onClick={() => setShowDesktopMenu((v) => !v)}
+            >
+              <Avatar avatarUrl={prefs.avatarUrl} initial={initial} size={36} />
+            </button>
 
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggle}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
-
-          <button type="button" className="nav-logout" onClick={onLogout} aria-label="Sign out">
-            Sign out
-          </button>
+            {showDesktopMenu && (
+              <UserMenu
+                userEmail={userEmail}
+                displayName={profile?.name}
+                avatarUrl={prefs.avatarUrl}
+                initial={initial}
+                theme={theme}
+                toggle={toggle}
+                onClose={() => setShowDesktopMenu(false)}
+                onLogout={onLogout}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -115,9 +265,30 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
             {theme === "dark" ? "☀" : "☾"}
           </button>
 
-          <NavLink to="/settings" className="mobile-avatar" title="Account settings">
-            <span className="user-avatar">{initial}</span>
-          </NavLink>
+          <div className="mobile-avatar-wrap" ref={mobileMenuRef}>
+            <button
+              type="button"
+              className="mobile-avatar"
+              aria-label="Account menu"
+              aria-expanded={showMobileMenu}
+              onClick={() => setShowMobileMenu((v) => !v)}
+            >
+              <Avatar avatarUrl={prefs.avatarUrl} initial={initial} size={34} />
+            </button>
+
+            {showMobileMenu && (
+              <UserMenu
+                userEmail={userEmail}
+                displayName={profile?.name}
+                avatarUrl={prefs.avatarUrl}
+                initial={initial}
+                theme={theme}
+                toggle={toggle}
+                onClose={() => setShowMobileMenu(false)}
+                onLogout={onLogout}
+              />
+            )}
+          </div>
         </div>
       </header>
 

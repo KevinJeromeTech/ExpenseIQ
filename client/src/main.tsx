@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import PreferencesProvider from "./components/PreferencesProvider";
+import ThemeProvider from "./components/ThemeProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -36,7 +37,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <PreferencesProvider>
+            <ThemeProvider>
             <App />
+            </ThemeProvider>
             <Toaster
               position="top-right"
               toastOptions={{

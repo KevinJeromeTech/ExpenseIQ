@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { usersApi, categoriesApi } from "../services/api";
 import { useAuthContext } from "../contexts/AuthContext";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
-import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../contexts/ThemeContext";
 import { CURRENCY_OPTIONS } from "../hooks/usePreferences";
 import type { DateFormat } from "../hooks/usePreferences";
 import {
@@ -32,7 +32,7 @@ const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string; example: string }
 export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const { token, user } = useAuthContext();
   const { prefs, setPrefs } = usePreferencesContext();
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { theme, toggle: toggleTheme } = useThemeContext();
   const queryClient = useQueryClient();
 
   const [currentPassword, setCurrentPassword] = useState("");

@@ -9,7 +9,7 @@ type PreferencesContextValue = {
 };
 
 export const PreferencesContext = createContext<PreferencesContextValue>({
-  prefs: { currency: "USD", defaultPage: "/dashboard", budgetAlertPct: 75, weeklyDigest: false },
+  prefs: { currency: "USD", defaultPage: "/dashboard", budgetAlertPct: 75, weeklyDigest: false, avatarUrl: "" },
   setPrefs: () => {},
   currencySymbol: "$",
   fmt: (n) => `$${n.toFixed(2)}`,

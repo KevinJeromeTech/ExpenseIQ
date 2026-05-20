@@ -15,6 +15,7 @@ export type Preferences = {
   defaultPage: "/dashboard" | "/transactions" | "/analytics";
   budgetAlertPct: number;
   weeklyDigest: boolean;
+  avatarUrl: string;
 };
 
 const STORAGE_KEY = "expenseiq_prefs";
@@ -24,6 +25,7 @@ const DEFAULT_PREFS: Preferences = {
   defaultPage: "/dashboard",
   budgetAlertPct: 75,
   weeklyDigest: false,
+  avatarUrl: "",
 };
 
 function load(): Preferences {

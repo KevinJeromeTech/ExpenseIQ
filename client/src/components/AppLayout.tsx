@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import logo from "../assets/logoiq.svg";
 import { useTheme } from "../hooks/useTheme";
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 
 type AppLayoutProps = {
   userEmail: string;
@@ -58,6 +59,7 @@ function IconSettings() {
 
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
   const { theme, toggle } = useTheme();
+  const { prefs } = usePreferencesContext();
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -103,7 +105,9 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
 
         <div className="app-nav-right">
           <NavLink to="/settings" className="app-nav-user" title="Account settings">
-            <span className="user-avatar">{initial}</span>
+            {prefs.avatarUrl
+              ? <img src={prefs.avatarUrl} alt="Profile" className="user-avatar user-avatar-img" />
+              : <span className="user-avatar">{initial}</span>}
             <span className="user-email">{userEmail}</span>
           </NavLink>
 
@@ -147,7 +151,9 @@ export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
               aria-expanded={showUserMenu}
               onClick={() => setShowUserMenu((v) => !v)}
             >
-              <span className="user-avatar">{initial}</span>
+              {prefs.avatarUrl
+                ? <img src={prefs.avatarUrl} alt="Profile" className="user-avatar user-avatar-img" />
+                : <span className="user-avatar">{initial}</span>}
             </button>
 
             {showUserMenu && (

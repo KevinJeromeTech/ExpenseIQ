@@ -2238,8 +2238,18 @@ img {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 680px;
+  width: 100%;
   padding-top: 8px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.settings-full {
+  grid-column: 1 / -1;
 }
 
 .settings-hero {
@@ -2264,6 +2274,148 @@ img {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* ── Profile row layout ── */
+.settings-profile-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.settings-profile-info {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Avatar ── */
+.settings-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-avatar-btn {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: rgba(59, 130, 246, 0.15);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color 0.2s ease;
+}
+
+.settings-avatar-btn:hover {
+  border-color: #3b82f6;
+}
+
+.settings-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.settings-avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.settings-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  opacity: 0;
+  border-radius: 50%;
+  transition: opacity 0.2s ease;
+}
+
+.settings-avatar-btn:hover .settings-avatar-overlay {
+  opacity: 1;
+}
+
+.settings-avatar-input {
+  display: none;
+}
+
+.settings-avatar-remove {
+  font-size: 0.72rem;
+  color: #f87171;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ── Sign out button in profile card ── */
+.settings-signout-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.settings-signout-btn:hover {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+/* ── Responsive settings grid ── */
+@media (max-width: 700px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-full {
+    grid-column: 1;
+  }
+
+  .settings-profile-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .settings-profile-info {
+    align-items: center;
+    width: 100%;
+  }
+
+  .settings-signout-btn {
+    margin-left: 0;
+    align-self: center;
+  }
 }
 
 .settings-section-heading {
@@ -2603,6 +2755,11 @@ img {
   justify-content: center;
   flex-shrink: 0;
   letter-spacing: 0;
+}
+
+.user-avatar-img {
+  object-fit: cover;
+  background: none;
 }
 
 .user-email {

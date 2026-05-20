@@ -3137,3 +3137,131 @@ img {
   color: #64748b;
   font-size: 0.95rem;
 }
+
+/* ================================================
+   ANALYTICS PAGE — KPI CARDS
+================================================ */
+.analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.analytics-kpi-card {
+  background: var(--surface-stat, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.analytics-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.kpi-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.kpi-icon.danger  { color: #f87171; }
+.kpi-icon.warning { color: #fbbf24; }
+.kpi-icon.positive { color: #34d399; }
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+
+.kpi-value.kpi-danger  { color: #f87171; }
+.kpi-value.kpi-positive { color: #34d399; }
+
+.kpi-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ================================================
+   ANALYTICS PAGE — CHARTS ROW (side-by-side)
+================================================ */
+.analytics-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ================================================
+   ANALYTICS PAGE — CUSTOM TOOLTIP
+================================================ */
+.analytics-tooltip {
+  background: var(--surface-nav);
+  border: 1px solid var(--border-nav);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.analytics-tooltip-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+
+.analytics-tooltip-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.analytics-legend-label {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analytics-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .kpi-value {
+    font-size: 1.2rem;
+  }
+}

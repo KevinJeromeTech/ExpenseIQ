@@ -105,12 +105,17 @@ export const insightsApi = {
 export type UserProfile = {
   id: number;
   email: string;
+  name: string | null;
+  birthday: string | null;
   createdAt: string;
 };
 
 export const usersApi = {
   getMe: (token: string) =>
     request<UserProfile>("/api/users/me", "GET", { token }),
+
+  updateProfile: (token: string, data: { name?: string; birthday?: string | null }) =>
+    request<UserProfile>("/api/users/me", "PUT", { token, body: data }),
 
   changePassword: (
     token: string,

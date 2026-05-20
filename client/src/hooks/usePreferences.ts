@@ -10,11 +10,16 @@ export const CURRENCY_OPTIONS: { code: CurrencyCode; label: string; symbol: stri
   { code: "JPY", label: "Japanese Yen",   symbol: "¥"   },
 ];
 
+export type DateFormat = "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
+
 export type Preferences = {
   currency: CurrencyCode;
   defaultPage: "/dashboard" | "/transactions" | "/analytics";
   budgetAlertPct: number;
+  budgetAlertsEnabled: boolean;
   weeklyDigest: boolean;
+  avatarUrl: string;
+  dateFormat: DateFormat;
 };
 
 const STORAGE_KEY = "expenseiq_prefs";
@@ -23,7 +28,10 @@ const DEFAULT_PREFS: Preferences = {
   currency: "USD",
   defaultPage: "/dashboard",
   budgetAlertPct: 75,
+  budgetAlertsEnabled: true,
   weeklyDigest: false,
+  avatarUrl: "",
+  dateFormat: "MM/DD/YYYY",
 };
 
 function load(): Preferences {

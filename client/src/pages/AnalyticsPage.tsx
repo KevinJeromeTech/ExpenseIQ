@@ -263,7 +263,7 @@ export default function AnalyticsPage() {
                     content={({ active, payload }) => (
                       <ChartTooltip
                         active={active}
-                        payload={payload as TooltipPayload[]}
+                        payload={payload as unknown as TooltipPayload[]}
                         label={(payload?.[0]?.payload as { category?: string })?.category}
                         fmt={fmt}
                       />
@@ -300,7 +300,7 @@ export default function AnalyticsPage() {
                     content={({ active, payload, label }) => (
                       <ChartTooltip
                         active={active}
-                        payload={payload as TooltipPayload[]}
+                        payload={payload as unknown as TooltipPayload[]}
                         label={label as string}
                         fmt={fmt}
                       />
@@ -339,7 +339,7 @@ export default function AnalyticsPage() {
                   content={({ active, payload, label }) => (
                     <ChartTooltip
                       active={active}
-                      payload={payload as TooltipPayload[]}
+                      payload={payload as unknown as TooltipPayload[]}
                       label={label as string}
                       fmt={fmt}
                     />
@@ -373,7 +373,7 @@ export default function AnalyticsPage() {
                   content={({ active, payload, label }) => (
                     <ChartTooltip
                       active={active}
-                      payload={payload as TooltipPayload[]}
+                      payload={payload as unknown as TooltipPayload[]}
                       label={label as string}
                       fmt={fmt}
                     />

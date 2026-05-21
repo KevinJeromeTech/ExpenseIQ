@@ -6,9 +6,10 @@ import { authApi } from "../services/api";
 
 type AuthFormProps = {
   onLoginSuccess: (token: string, user: { id: number; email: string }) => void;
+  showLogo?: boolean;
 };
 
-export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
+export default function LoginForm({ onLoginSuccess, showLogo = true }: AuthFormProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,9 +55,9 @@ export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
   };
 
   return (
-    <div className="auth-shell">
+    <div className={showLogo ? "auth-shell" : "auth-shell auth-shell-embedded"}>
       <div className="auth-card">
-        <img src={logo} alt="ExpenseIQ logo" className="login-logo" />
+        {showLogo && <img src={logo} alt="ExpenseIQ logo" className="login-logo" />}
 
         <p className="auth-eyebrow">Personal Finance Dashboard</p>
 
@@ -111,8 +112,8 @@ export default function LoginForm({ onLoginSuccess }: AuthFormProps) {
                 ? "Signing in..."
                 : "Creating account..."
               : mode === "login"
-              ? "Login"
-              : "Sign Up"}
+              ? "Sign in"
+              : "Create account"}
           </button>
         </form>
 

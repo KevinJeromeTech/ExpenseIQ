@@ -4615,3 +4615,266 @@ input[type="date"] {
   vertical-align: middle;
   letter-spacing: 0.01em;
 }
+
+/* ═══════════════════════════════════════
+   Category Budget Cards
+═══════════════════════════════════════ */
+
+.cat-budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.cat-budget-card {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  outline: none;
+}
+
+.cat-budget-card:hover,
+.cat-budget-card:focus-visible {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(59, 130, 246, 0.05);
+  transform: translateY(-1px);
+}
+
+.cat-budget-card-editing {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(59, 130, 246, 0.06);
+  cursor: default;
+  transform: none;
+}
+
+.cat-budget-card-editing:hover {
+  transform: none;
+}
+
+.cat-budget-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-budget-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.cat-budget-name {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-budget-spent {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.cat-budget-track {
+  margin: 0;
+}
+
+.cat-budget-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cat-budget-pct {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.cat-budget-limit {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.cat-budget-unset {
+  font-size: 0.75rem;
+  color: #475569;
+  margin: 0;
+  font-style: italic;
+}
+
+.cat-budget-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cat-budget-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cat-budget-edit-actions .primary-button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
+.ghost-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-input);
+  background: transparent;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.ghost-btn:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+/* ═══════════════════════════════════════
+   Share Page
+═══════════════════════════════════════ */
+
+.share-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.share-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.share-title {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 8px 0 6px;
+}
+
+.share-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.share-stats {
+  margin: 0;
+}
+
+.share-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.share-chart-card,
+.share-category-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.share-cat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.share-cat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.share-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-cat-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.share-cat-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.share-cat-amount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.share-cat-pct {
+  font-size: 0.72rem;
+  color: #64748b;
+  padding-left: 18px;
+}
+
+.share-transactions-card h3 {
+  margin-bottom: 16px;
+}
+
+.share-footer {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #475569;
+  padding-top: 8px;
+}
+
+.share-footer a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.share-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .share-charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cat-budget-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .cat-budget-grid {
+    grid-template-columns: 1fr;
+  }
+}

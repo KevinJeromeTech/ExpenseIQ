@@ -107,13 +107,16 @@ client/src/
 │   ├── useCategories.ts
 │   └── useInsights.ts
 ├── components/
-│   ├── AppLayout.tsx
+│   ├── AppLayout.tsx        # Nav + page shell for authenticated routes
 │   ├── LoginForm.tsx
 │   ├── ProtectedRoute.tsx
-│   └── ...
+│   ├── Dropdown.tsx
+│   ├── ThemeProvider.tsx
+│   ├── PreferencesProvider.tsx
+│   └── ErrorBoundary.tsx
 └── pages/
     ├── LandingPage.tsx       # Public marketing page (/)
-    ├── LoginPage.tsx         # Split-layout login (/login)
+    ├── LoginPage.tsx         # Split two-column login (/login)
     ├── DashboardPage.tsx
     ├── TransactionsPage.tsx
     ├── AnalyticsPage.tsx
@@ -125,8 +128,15 @@ client/src/
 server/src/
 ├── app.ts                   # Express app + all API routes
 ├── server.ts                # Entry point
-└── middleware/
-    └── auth.ts              # JWT verification
+├── database/
+│   └── prisma.ts            # Prisma client singleton
+├── lib/
+│   └── mailer.ts            # Password reset email sending
+├── middleware/
+│   └── auth.ts              # JWT verification
+└── routes/
+    ├── auth.ts              # Register, login, password reset
+    └── users.ts             # User profile and account management
 ```
 
 Request flow:

@@ -251,6 +251,46 @@ img {
   font-size: 0.95rem;
 }
 
+.auth-waking {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.auth-waking-spinner {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(251, 191, 36, 0.25);
+  border-top-color: #fbbf24;
+  animation: spin 0.8s linear infinite;
+}
+
+.auth-waking-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auth-waking-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.auth-waking-sub {
+  font-size: 0.78rem;
+  color: #92400e;
+  color: rgba(251, 191, 36, 0.7);
+  line-height: 1.4;
+}
+
 .auth-switch-button {
   margin-top: 14px;
   width: 100%;

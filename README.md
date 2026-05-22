@@ -36,14 +36,23 @@ A full-stack personal finance dashboard for tracking spending, managing budgets,
 
 ## Screenshots
 
+### Landing Page
+<img width="1680" height="963" alt="IQLandingPage" src="https://github.com/user-attachments/assets/888be43f-0c29-4d11-87a9-20fb70715230" />
+
+### Login Page
+<img width="1680" height="964" alt="IQLoginPage" src="https://github.com/user-attachments/assets/1b05eebe-c441-4758-8b21-4cc102b10a57" />
+
 ### Dashboard
-<img width="788" height="932" alt="Dashboard" src="https://github.com/user-attachments/assets/fc36143f-b6d6-4b10-a003-9251a36508bf" />
+<img width="1077" height="956" alt="IQRevampedDashboard" src="https://github.com/user-attachments/assets/3476dee7-7517-4f13-9d35-91d25a1794ff" />
+<img width="1081" height="762" alt="IQDashboardPartII" src="https://github.com/user-attachments/assets/4b24ef54-1602-4174-a903-3648e3c5513f" />
+<img width="1073" height="724" alt="IQSmartInsights" src="https://github.com/user-attachments/assets/fa7dd8e3-c388-4fdc-8d38-4f9cffc6e4b1" />
 
 ### Transactions
-<img width="592" height="336" alt="Transactions" src="https://github.com/user-attachments/assets/f3ac16cb-e986-42bb-ae3f-4b7a6d091773" />
+<img width="1083" height="941" alt="IQTransaction" src="https://github.com/user-attachments/assets/5f673bb1-b8b4-4823-b3fd-9a56d75af9cd" />
+
 
 ### Analytics
-<img width="603" height="768" alt="Analytics" src="https://github.com/user-attachments/assets/b2a1612f-1483-4aba-8f01-3f2d65dc006e" />
+
 
 ---
 

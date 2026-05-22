@@ -10,7 +10,6 @@ import AppLayout from "./components/AppLayout";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
@@ -35,8 +34,8 @@ function App() {
     return (
       <Suspense fallback={<div className="page-loading">Loading…</div>}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage onLoginSuccess={onLoginSuccess} />} />
+          <Route path="/" element={<LandingPage onLoginSuccess={onLoginSuccess} />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/share/:token" element={<SharePage />} />

@@ -14,12 +14,43 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, createdAt: true },
+      select: { id: true, email: true, name: true, birthday: true, createdAt: true },
     });
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
     res.json(user);
   } catch {
     res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+router.put("/me", authenticate, async (req: AuthRequest, res: Response) => {
+  const schema = z.object({
+    name: z.string().max(80).optional(),
+    birthday: z.string().optional().nullable(),
+  });
+
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0].message });
+    return;
+  }
+
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { name, birthday } = result.data;
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: name !== undefined ? (name.trim() || null) : undefined,
+        birthday: birthday !== undefined ? (birthday ? new Date(birthday) : null) : undefined,
+      },
+      select: { id: true, email: true, name: true, birthday: true, createdAt: true },
+    });
+    res.json(user);
+  } catch {
+    res.status(500).json({ error: "Failed to update profile" });
   }
 });
 

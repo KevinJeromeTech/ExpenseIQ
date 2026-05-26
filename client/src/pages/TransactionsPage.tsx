@@ -7,6 +7,7 @@ import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
 import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag, SlidersHorizontal, Search, Calendar } from "lucide-react";
 import Dropdown from "../components/Dropdown";
+import EmptyState, { IconReceipt } from "../components/EmptyState";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -579,7 +580,7 @@ export default function TransactionsPage() {
             ))}
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <p className="empty-state">No transactions yet. Start by adding one 🚀</p>
+          <EmptyState icon={<IconReceipt />} title="No transactions yet" subtitle="Add your first transaction to start tracking your spending." />
         ) : (
           <div className="transactions-list">
             {filteredTransactions.map((t) => (

@@ -44,5 +44,6 @@ export type ShareSnapshot = {
   netIncome: number;
   transactionCount: number;
   budgets: Budget[];
+  categoryBreakdown: { name: string; value: number }[];
   recentTransactions: Transaction[];
 };

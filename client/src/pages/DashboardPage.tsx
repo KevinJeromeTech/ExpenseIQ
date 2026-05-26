@@ -3,14 +3,16 @@ import { useAuthContext } from "../contexts/AuthContext";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useBudgets } from "../hooks/useBudgets";
+import { useCategories } from "../hooks/useCategories";
 import { useInsights } from "../hooks/useInsights";
 import { shareApi } from "../services/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
 import {
   TrendingUp, TrendingDown, DollarSign, Activity,
-  Target, Share2, Trophy, Zap, BarChart2, ArrowUpRight, ArrowDownRight, Plus, Trash2,
+  Target, Share2, Trophy, Zap, BarChart2, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
+
 const COLORS = ["#f472b6","#34d399","#60a5fa","#fb923c","#a78bfa","#fbbf24","#38bdf8"];
 
 export default function DashboardPage() {
@@ -19,6 +21,7 @@ export default function DashboardPage() {
 
   const { transactions, isLoading: isLoadingTransactions } = useTransactions({ token, onUnauthorized });
   const { budgets, savedMonthlyLimit, saveBudget, isSavingBudget } = useBudgets({ token, onUnauthorized });
+  const { expenseCategories } = useCategories({ token, onUnauthorized });
   const { insights } = useInsights({ token, onUnauthorized });
 
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -28,11 +31,7 @@ export default function DashboardPage() {
   // Category budget inputs keyed by category name
   const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<string, string>>({});
   const [isSavingCategoryBudget, setIsSavingCategoryBudget] = useState<Record<string, boolean>>({});
-
-  // Add-category-budget UI
-  const [showAddCatBudget, setShowAddCatBudget] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatLimit, setNewCatLimit] = useState("");
+  const [editingCat, setEditingCat] = useState<string | null>(null);
 
   // Share state
   const [shareToken, setShareToken] = useState<string | null>(null);
@@ -140,29 +139,6 @@ export default function DashboardPage() {
     return list;
   }, [transactions, totalExpenses, totalIncome, netIncome, budgetAmount]);
 
-  // Category budgets the user has already set this month (excluding global Monthly)
-  const activeCatBudgets = useMemo(
-    () => budgets.filter((b) => b.category !== "Monthly" && b.month === currentMonth),
-    [budgets, currentMonth]
-  );
-
-  const handleAddCategoryBudget = async () => {
-    const cat = newCatName.trim();
-    const limit = parseFloat(newCatLimit);
-    if (!cat) { toast.error("Enter a category name."); return; }
-    if (!limit || limit <= 0) { toast.error("Enter a valid limit."); return; }
-    await saveBudget({ category: cat, limit, month: currentMonth });
-    toast.success(`${cat} budget added!`);
-    setNewCatName("");
-    setNewCatLimit("");
-    setShowAddCatBudget(false);
-  };
-
-  const handleRemoveCategoryBudget = async (cat: string) => {
-    await saveBudget({ category: cat, limit: 0, month: currentMonth });
-    toast.success(`${cat} budget removed.`);
-  };
-
   const handleSaveMonthlyBudget = async () => {
     const limit = typeof budgetInputValue === "number" ? budgetInputValue : 0;
     if (limit <= 0) {
@@ -195,6 +171,7 @@ export default function DashboardPage() {
       await saveBudget({ category: cat, limit, month: currentMonth });
       toast.success(`${cat} budget saved!`);
       setCategoryBudgetInputs((prev) => { const next = { ...prev }; delete next[cat]; return next; });
+      setEditingCat(null);
     } catch {
       // error handled in hook
     } finally {
@@ -407,120 +384,94 @@ export default function DashboardPage() {
       </section>
 
       <section className="card budget-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
-          <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <BarChart2 size={18} />
-            Category Budgets
-          </h3>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setShowAddCatBudget((v) => !v)}
-          >
-            <Plus size={14} />
-            Add Category
-          </button>
-        </div>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <BarChart2 size={18} />
+          Category Budgets
+        </h3>
+        <p className="budget-caption" style={{ marginBottom: "1.25rem" }}>
+          Set monthly spending limits per category. Click a card to edit.
+        </p>
+        <div className="cat-budget-grid">
+          {expenseCategories.map((catObj, i) => {
+            const cat = catObj.name;
+            const spent = categoryTotals[cat] ?? 0;
+            const existing = budgets.find((b) => b.category === cat && b.month === currentMonth);
+            const savedLimit = existing?.limit ?? 0;
+            const inputVal = categoryBudgetInputs[cat] ?? (savedLimit > 0 ? String(savedLimit) : "");
+            const displayLimit = parseFloat(inputVal) || savedLimit;
+            const percent = displayLimit > 0 ? Math.min((spent / displayLimit) * 100, 100) : 0;
+            const isSaving = isSavingCategoryBudget[cat] ?? false;
+            const isEditing = editingCat === cat;
+            const statusClass = percent >= 100 ? "danger-fill" : percent >= 75 ? "warning-fill" : "positive-fill";
+            const color = COLORS[i % COLORS.length];
 
-        {/* Add category form */}
-        {showAddCatBudget && (
-          <div className="add-cat-budget-form">
-            <input
-              className="budget-input"
-              type="text"
-              placeholder="Category name (e.g. Food)"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void handleAddCategoryBudget(); if (e.key === "Escape") setShowAddCatBudget(false); }}
-              autoFocus
-            />
-            <input
-              className="budget-input"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Monthly limit"
-              value={newCatLimit}
-              onChange={(e) => setNewCatLimit(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void handleAddCategoryBudget(); }}
-            />
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button type="button" className="primary-button btn-auto" onClick={() => void handleAddCategoryBudget()} disabled={isSavingBudget}>
-                Add
-              </button>
-              <button type="button" className="cancel-button" onClick={() => setShowAddCatBudget(false)} style={{ marginTop: 0 }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+            return (
+              <div
+                key={cat}
+                className={`cat-budget-card${isEditing ? " cat-budget-card-editing" : ""}${savedLimit > 0 ? " cat-budget-card-set" : ""}`}
+                onClick={() => !isEditing && setEditingCat(cat)}
+                role={isEditing ? undefined : "button"}
+                tabIndex={isEditing ? undefined : 0}
+                onKeyDown={(e) => { if (!isEditing && (e.key === "Enter" || e.key === " ")) setEditingCat(cat); }}
+              >
+                <div className="cat-budget-card-top">
+                  <span className="cat-budget-dot" style={{ background: color }} />
+                  <span className="cat-budget-name">{cat}</span>
+                  <span className="cat-budget-spent">{fmt(spent)}</span>
+                </div>
 
-        {activeCatBudgets.length === 0 && !showAddCatBudget ? (
-          <p className="empty-state" style={{ marginTop: "0.5rem" }}>
-            No category budgets yet. Click "Add Category" to set a spending limit.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            {activeCatBudgets.map((budget) => {
-              const cat = budget.category;
-              const spent = categoryTotals[cat] ?? 0;
-              const inputVal = categoryBudgetInputs[cat] ?? String(budget.limit);
-              const limit = parseFloat(inputVal) || budget.limit;
-              const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-              const isSaving = isSavingCategoryBudget[cat] ?? false;
-
-              return (
-                <div key={cat} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                    <span className="budget-label">{cat}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "0.85rem", color: "var(--text-muted, #94a3b8)" }}>
-                        {fmt(spent)} spent
-                      </span>
-                      <button
-                        type="button"
-                        className="icon-button delete-icon"
-                        title={`Remove ${cat} budget`}
-                        onClick={() => void handleRemoveCategoryBudget(cat)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                {savedLimit > 0 && !isEditing && (
+                  <>
+                    <div className="progress-track cat-budget-track">
+                      <div className={`progress-fill ${statusClass}`} style={{ width: `${percent}%` }} />
                     </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                    <div className="cat-budget-footer">
+                      <span className="cat-budget-pct">{percent.toFixed(0)}%</span>
+                      <span className="cat-budget-limit">of {fmt(savedLimit)}</span>
+                    </div>
+                  </>
+                )}
+
+                {!savedLimit && !isEditing && (
+                  <p className="cat-budget-unset">No limit set — click to add</p>
+                )}
+
+                {isEditing && (
+                  <div className="cat-budget-edit" onClick={(e) => e.stopPropagation()}>
                     <input
                       className="budget-input"
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="Limit"
+                      placeholder="Monthly limit"
                       value={inputVal}
+                      autoFocus
                       onChange={(e) => setCategoryBudgetInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
-                      style={{ flex: 1, minWidth: 0 }}
+                      onKeyDown={(e) => { if (e.key === "Enter") void handleSaveCategoryBudget(cat); if (e.key === "Escape") setEditingCat(null); }}
                     />
-                    <button
-                      type="button"
-                      className="primary-button btn-auto"
-                      onClick={() => void handleSaveCategoryBudget(cat)}
-                      disabled={isSaving || isSavingBudget}
-                    >
-                      {isSaving ? "Saving…" : "Save"}
-                    </button>
+                    <div className="cat-budget-edit-actions">
+                      <button
+                        type="button"
+                        className="primary-button btn-auto"
+                        onClick={() => void handleSaveCategoryBudget(cat)}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => setEditingCat(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <div className="progress-track">
-                    <div
-                      className={`progress-fill ${percent >= 100 ? "danger-fill" : percent >= 75 ? "warning-fill" : "positive-fill"}`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <p className="budget-caption">
-                    {percent.toFixed(1)}% of {fmt(limit)} {cat} budget used
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section className="card chart-card">

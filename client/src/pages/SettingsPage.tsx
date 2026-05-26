@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { usersApi } from "../services/api";
+import { usersApi, categoriesApi } from "../services/api";
 import { useAuthContext } from "../contexts/AuthContext";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
+import { useThemeContext } from "../contexts/ThemeContext";
 import { CURRENCY_OPTIONS } from "../hooks/usePreferences";
+import type { DateFormat } from "../hooks/usePreferences";
 import {
   User, Shield, Sliders, Bell, Trash2, KeyRound, DollarSign,
   LayoutDashboard, List, BarChart2, BellRing, BellOff, Camera, Pencil, Check, X,
+  Sun, Moon, Palette, Tag, Plus, Calendar,
 } from "lucide-react";
 
 type SettingsPageProps = {
@@ -20,9 +23,16 @@ const PAGE_OPTIONS = [
   { value: "/analytics",    label: "Analytics",    Icon: BarChart2       },
 ] as const;
 
+const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string; example: string }[] = [
+  { value: "MM/DD/YYYY", label: "MM/DD/YYYY", example: "05/20/2026" },
+  { value: "DD/MM/YYYY", label: "DD/MM/YYYY", example: "20/05/2026" },
+  { value: "YYYY-MM-DD", label: "YYYY-MM-DD", example: "2026-05-20" },
+];
+
 export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const { token, user } = useAuthContext();
   const { prefs, setPrefs } = usePreferencesContext();
+  const { theme, toggle: toggleTheme } = useThemeContext();
   const queryClient = useQueryClient();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -30,6 +40,9 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Categories manager state
+  const [newCatName, setNewCatName] = useState("");
 
   // Editable profile fields
   const [editingName, setEditingName] = useState(false);
@@ -76,6 +89,32 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
       onDeleteSuccess();
     },
     onError: (err: Error) => toast.error(err.message || "Failed to delete account"),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", token],
+    queryFn: () => categoriesApi.getAll(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const createCategoryMutation = useMutation({
+    mutationFn: (name: string) => categoriesApi.create(token!, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      setNewCatName("");
+      toast.success("Category added!");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to add category"),
+  });
+
+  const removeCategoryMutation = useMutation({
+    mutationFn: (id: number) => categoriesApi.remove(token!, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Category removed.");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to remove category"),
   });
 
   const startEditingName = () => {
@@ -146,6 +185,17 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
   const handleRemoveAvatar = () => {
     setPrefs({ avatarUrl: "" });
     toast.success("Profile picture removed.");
+  };
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCatName.trim();
+    if (!name) return;
+    if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      toast.error("Category already exists.");
+      return;
+    }
+    createCategoryMutation.mutate(name);
   };
 
   const formatBirthday = (iso: string | null) => {
@@ -288,6 +338,43 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
           </div>
         </div>
 
+        {/* ── Appearance ────────────────────────── */}
+        <div className="card settings-card">
+          <h3 className="settings-section-heading">
+            <Palette size={16} />
+            Appearance
+          </h3>
+          <p className="settings-section-desc">Customize the look of your app.</p>
+
+          <div className="pref-row">
+            <div className="pref-label-group">
+              {theme === "dark" ? <Moon size={14} className="pref-icon" /> : <Sun size={14} className="pref-icon" />}
+              <div>
+                <p className="pref-title">Theme</p>
+                <p className="pref-desc">Choose your preferred color scheme</p>
+              </div>
+            </div>
+            <div className="page-options">
+              <button
+                type="button"
+                className={`page-chip${theme === "light" ? " active" : ""}`}
+                onClick={() => { if (theme !== "light") toggleTheme(); toast.success("Light mode enabled"); }}
+              >
+                <Sun size={13} />
+                Light
+              </button>
+              <button
+                type="button"
+                className={`page-chip${theme === "dark" ? " active" : ""}`}
+                onClick={() => { if (theme !== "dark") toggleTheme(); toast.success("Dark mode enabled"); }}
+              >
+                <Moon size={13} />
+                Dark
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* ── Financial Preferences ─────────────── */}
         <div className="card settings-card settings-full">
           <h3 className="settings-section-heading">
@@ -322,6 +409,29 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
 
           <div className="pref-row">
             <div className="pref-label-group">
+              <Calendar size={14} className="pref-icon" />
+              <div>
+                <p className="pref-title">Date Format</p>
+                <p className="pref-desc">How dates are displayed throughout the app</p>
+              </div>
+            </div>
+            <div className="page-options">
+              {DATE_FORMAT_OPTIONS.map(({ value, label, example }) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`Example: ${example}`}
+                  className={`page-chip${prefs.dateFormat === value ? " active" : ""}`}
+                  onClick={() => { setPrefs({ dateFormat: value }); toast.success(`Date format set to ${label}`); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pref-row">
+            <div className="pref-label-group">
               <LayoutDashboard size={14} className="pref-icon" />
               <div>
                 <p className="pref-title">Default Page</p>
@@ -343,25 +453,51 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
             </div>
           </div>
 
-          <div className="pref-row pref-row-stack">
+          <div className="pref-row">
             <div className="pref-label-group">
-              <Bell size={14} className="pref-icon" />
+              {prefs.budgetAlertsEnabled
+                ? <BellRing size={14} className="pref-icon" />
+                : <BellOff size={14} className="pref-icon muted" />}
               <div>
-                <p className="pref-title">Budget Alert Threshold</p>
-                <p className="pref-desc">Warn me when spending reaches this % of my budget</p>
+                <p className="pref-title">Budget Alerts</p>
+                <p className="pref-desc">Get notified when spending approaches your budget limit</p>
               </div>
             </div>
-            <div className="threshold-control">
-              <input
-                type="range"
-                min={50} max={95} step={5}
-                value={prefs.budgetAlertPct}
-                className="threshold-slider"
-                onChange={(e) => setPrefs({ budgetAlertPct: Number(e.target.value) })}
-              />
-              <span className="threshold-value">{prefs.budgetAlertPct}%</span>
-            </div>
+            <button
+              type="button"
+              className={`toggle-switch${prefs.budgetAlertsEnabled ? " on" : ""}`}
+              onClick={() => {
+                setPrefs({ budgetAlertsEnabled: !prefs.budgetAlertsEnabled });
+                toast.success(prefs.budgetAlertsEnabled ? "Budget alerts disabled" : "Budget alerts enabled");
+              }}
+              aria-pressed={prefs.budgetAlertsEnabled}
+              aria-label="Toggle budget alerts"
+            >
+              <span className="toggle-thumb" />
+            </button>
           </div>
+
+          {prefs.budgetAlertsEnabled && (
+            <div className="pref-row pref-row-stack">
+              <div className="pref-label-group">
+                <Bell size={14} className="pref-icon" />
+                <div>
+                  <p className="pref-title">Alert Threshold</p>
+                  <p className="pref-desc">Warn me when spending reaches this % of my budget</p>
+                </div>
+              </div>
+              <div className="threshold-control">
+                <input
+                  type="range"
+                  min={50} max={95} step={5}
+                  value={prefs.budgetAlertPct}
+                  className="threshold-slider"
+                  onChange={(e) => setPrefs({ budgetAlertPct: Number(e.target.value) })}
+                />
+                <span className="threshold-value">{prefs.budgetAlertPct}%</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Notifications ─────────────────────── */}
@@ -420,6 +556,54 @@ export default function SettingsPage({ onDeleteSuccess }: SettingsPageProps) {
             <button type="submit" className="primary-button" disabled={changePasswordMutation.isPending} style={{ marginTop: "4px" }}>
               <Shield size={14} />
               {changePasswordMutation.isPending ? "Updating…" : "Update Password"}
+            </button>
+          </form>
+        </div>
+
+        {/* ── Categories ───────────────────────── */}
+        <div className="card settings-card">
+          <h3 className="settings-section-heading">
+            <Tag size={16} />
+            Categories
+          </h3>
+          <p className="settings-section-desc">Manage the categories used to organize your transactions.</p>
+
+          <div className="categories-list">
+            {categories.length === 0 && (
+              <p className="categories-empty">No custom categories yet.</p>
+            )}
+            {categories.map((cat) => (
+              <div key={cat.id} className="category-chip-row">
+                <span className="category-chip-name">{cat.name}</span>
+                <button
+                  type="button"
+                  className="category-remove-btn"
+                  title="Remove category"
+                  onClick={() => removeCategoryMutation.mutate(cat.id)}
+                  disabled={removeCategoryMutation.isPending}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <form className="add-category-form" onSubmit={handleAddCategory}>
+            <input
+              type="text"
+              className="add-category-input"
+              placeholder="New category name…"
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              maxLength={40}
+            />
+            <button
+              type="submit"
+              className="add-category-btn"
+              disabled={!newCatName.trim() || createCategoryMutation.isPending}
+            >
+              <Plus size={14} />
+              Add
             </button>
           </form>
         </div>

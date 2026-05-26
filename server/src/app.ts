@@ -607,14 +607,21 @@ app.get("/api/share/:token", async (req: Request<{ token: string }>, res: Respon
       take: 100,
     });
     const budgets = await prisma.budget.findMany({ where: { userId: user.id } });
-    const totalExpenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    const expenseTxns = transactions.filter(t => t.type === "expense");
+    const totalExpenses = expenseTxns.reduce((s, t) => s + t.amount, 0);
     const totalIncome = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const catTotals: Record<string, number> = {};
+    for (const t of expenseTxns) catTotals[t.category] = (catTotals[t.category] ?? 0) + t.amount;
+    const categoryBreakdown = Object.entries(catTotals)
+      .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => b.value - a.value);
     res.json({
       totalExpenses,
       totalIncome,
       netIncome: totalIncome - totalExpenses,
       transactionCount: transactions.length,
       budgets,
+      categoryBreakdown,
       recentTransactions: transactions.slice(0, 10),
     });
   } catch { res.status(500).json({ error: "Failed to load share data" }); }

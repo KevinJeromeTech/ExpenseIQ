@@ -5,11 +5,11 @@ import "./App.css";
 import { useAuth } from "./hooks/useAuth";
 import { AuthContext } from "./contexts/AuthContext";
 import { usePreferencesContext } from "./contexts/PreferencesContext";
-import LoginForm from "./components/LoginForm";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import LandingPage from "./pages/LandingPage";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
@@ -30,15 +30,16 @@ function App() {
     queryClient.clear();
   }, [logout, queryClient]);
 
-  // Public routes (password reset) must be accessible before auth
   if (!token || !user) {
     return (
       <Suspense fallback={<div className="page-loading">Loading…</div>}>
         <Routes>
+          <Route path="/" element={<LandingPage onLoginSuccess={onLoginSuccess} />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/share/:token" element={<SharePage />} />
-          <Route path="*" element={<LoginForm onLoginSuccess={onLoginSuccess} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     );
@@ -57,6 +58,7 @@ function App() {
             }
           >
             <Route path="/" element={<Navigate to={prefs.defaultPage} replace />} />
+            <Route path="/login" element={<Navigate to={prefs.defaultPage} replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />

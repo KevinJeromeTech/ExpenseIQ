@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import logo from "../assets/logoiq.svg";
-import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../contexts/ThemeContext";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useAuthContext } from "../contexts/AuthContext";
 import { usersApi } from "../services/api";
@@ -160,7 +160,7 @@ function UserMenu({
 }
 
 export default function AppLayout({ userEmail, onLogout }: AppLayoutProps) {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle } = useThemeContext();
   const { prefs } = usePreferencesContext();
   const { token } = useAuthContext();
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";

@@ -8,6 +8,8 @@ import { useInsights } from "../hooks/useInsights";
 import { shareApi } from "../services/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
+import EmptyState, { IconBarChart, IconLightbulb, IconTrophy, IconPieChart } from "../components/EmptyState";
+import { StatCardSkeleton, ChartSkeleton, InsightRowSkeleton, ReportRowSkeleton } from "../components/Skeletons";
 import {
   TrendingUp, TrendingDown, DollarSign, Activity,
   Target, Share2, Trophy, Zap, BarChart2, ArrowUpRight, ArrowDownRight,
@@ -208,41 +210,44 @@ export default function DashboardPage() {
       </section>
 
       <section className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon-row">
-            <p className="stat-label">Total Income</p>
-            <TrendingUp size={18} className="stat-icon positive" />
-          </div>
-          <h2 className="stat-value positive">{fmt(totalIncome)}</h2>
-          <p className="stat-sub">All time</p>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-row">
-            <p className="stat-label">Total Expenses</p>
-            <TrendingDown size={18} className="stat-icon danger" />
-          </div>
-          <h2 className="stat-value">{fmt(totalExpenses)}</h2>
-          <p className="stat-sub">All time</p>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-row">
-            <p className="stat-label">Net Income</p>
-            <DollarSign size={18} className={`stat-icon ${netIncome >= 0 ? "positive" : "danger"}`} />
-          </div>
-          <h2 className={`stat-value ${netIncome >= 0 ? "positive" : "danger"}`}>{fmt(netIncome)}</h2>
-          <p className="stat-sub">Income − Expenses</p>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-row">
-            <p className="stat-label">Transactions</p>
-            <Activity size={18} className="stat-icon" />
-          </div>
-          <h2 className="stat-value">{transactions.length}</h2>
-          <p className="stat-sub">Recorded</p>
-        </div>
+        {isLoadingTransactions ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <div className="stat-card">
+              <div className="stat-icon-row">
+                <p className="stat-label">Total Income</p>
+                <TrendingUp size={18} className="stat-icon positive" />
+              </div>
+              <h2 className="stat-value positive">{fmt(totalIncome)}</h2>
+              <p className="stat-sub">All time</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-row">
+                <p className="stat-label">Total Expenses</p>
+                <TrendingDown size={18} className="stat-icon danger" />
+              </div>
+              <h2 className="stat-value">{fmt(totalExpenses)}</h2>
+              <p className="stat-sub">All time</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-row">
+                <p className="stat-label">Net Income</p>
+                <DollarSign size={18} className={`stat-icon ${netIncome >= 0 ? "positive" : "danger"}`} />
+              </div>
+              <h2 className={`stat-value ${netIncome >= 0 ? "positive" : "danger"}`}>{fmt(netIncome)}</h2>
+              <p className="stat-sub">Income − Expenses</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-row">
+                <p className="stat-label">Transactions</p>
+                <Activity size={18} className="stat-icon" />
+              </div>
+              <h2 className="stat-value">{transactions.length}</h2>
+              <p className="stat-sub">Recorded</p>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="card report-card">
@@ -477,8 +482,10 @@ export default function DashboardPage() {
       <section className="card chart-card">
         <p className="eyebrow">Spending Breakdown</p>
         <h3>By Category</h3>
-        {categoryChartData.length === 0 ? (
-          <p className="empty-state">No expense transactions yet.</p>
+        {isLoadingTransactions ? (
+          <ChartSkeleton height={260} />
+        ) : categoryChartData.length === 0 ? (
+          <EmptyState icon={<IconPieChart />} title="No expense data yet" subtitle="Add some expense transactions to see your spending breakdown." />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -506,8 +513,10 @@ export default function DashboardPage() {
       <section className="card mom-card">
         <p className="eyebrow">Month-over-Month</p>
         <h3>Category Comparison</h3>
-        {momData.length === 0 ? (
-          <p className="empty-state">Not enough data yet.</p>
+        {isLoadingTransactions ? (
+          <div>{Array.from({ length: 4 }).map((_, i) => <ReportRowSkeleton key={i} />)}</div>
+        ) : momData.length === 0 ? (
+          <EmptyState icon={<IconBarChart />} title="Not enough data yet" subtitle="You need transactions from at least two months to see comparisons." />
         ) : (
           <div className="mom-table">
             <div className="mom-header">
@@ -539,7 +548,7 @@ export default function DashboardPage() {
           Your Milestones
         </h3>
         {achievements.length === 0 ? (
-          <p className="empty-state">Keep logging transactions to unlock achievements.</p>
+          <EmptyState icon={<IconTrophy />} title="No achievements yet" subtitle="Keep logging transactions and staying on budget to unlock milestones." />
         ) : (
           <div className="achievement-grid">
             {achievements.map(a => (
@@ -560,10 +569,10 @@ export default function DashboardPage() {
           Smart Financial Signals
         </h3>
 
-        {insights.length === 0 ? (
-          <p className="empty-state">
-            Add transactions and a monthly budget to unlock smarter insights.
-          </p>
+        {isLoadingTransactions ? (
+          <div>{Array.from({ length: 3 }).map((_, i) => <InsightRowSkeleton key={i} />)}</div>
+        ) : insights.length === 0 ? (
+          <EmptyState icon={<IconLightbulb />} title="No insights yet" subtitle="Add transactions and set a monthly budget to unlock smart financial signals." />
         ) : (
           <div className="insight-list">
             {insights.map((insight, index) => (

@@ -7,6 +7,8 @@ import { TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight, Minus
 import { useAuthContext } from "../contexts/AuthContext";
 import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
+import EmptyState, { IconBarChart, IconLightbulb, IconPieChart } from "../components/EmptyState";
+import { KpiCardSkeleton, ChartSkeleton, InsightRowSkeleton } from "../components/Skeletons";
 
 type DateRange = "7d" | "30d" | "all";
 
@@ -158,51 +160,46 @@ export default function AnalyticsPage() {
 
       {/* ── KPI cards ── */}
       <section className="analytics-kpi-grid">
-        <div className="analytics-kpi-card">
-          <div className="kpi-top">
-            <span className="kpi-label">Total Spend</span>
-            <TrendingDown size={16} className="kpi-icon danger" />
-          </div>
-          <p className="kpi-value">{isLoading ? "—" : fmt(kpis.total)}</p>
-          <p className="kpi-sub">{kpis.count} transaction{kpis.count !== 1 ? "s" : ""}</p>
-        </div>
-
-        <div className="analytics-kpi-card">
-          <div className="kpi-top">
-            <span className="kpi-label">Avg / Day</span>
-            <Calendar size={16} className="kpi-icon" />
-          </div>
-          <p className="kpi-value">{isLoading ? "—" : fmt(kpis.avgPerDay)}</p>
-          <p className="kpi-sub">across {trendData.length} active day{trendData.length !== 1 ? "s" : ""}</p>
-        </div>
-
-        <div className="analytics-kpi-card">
-          <div className="kpi-top">
-            <span className="kpi-label">Peak Day</span>
-            <TrendingUp size={16} className="kpi-icon warning" />
-          </div>
-          <p className="kpi-value">{isLoading ? "—" : fmt(kpis.highestDay)}</p>
-          <p className="kpi-sub">highest single day</p>
-        </div>
-
-        <div className="analytics-kpi-card">
-          <div className="kpi-top">
-            <span className="kpi-label">Day-over-Day</span>
-            {kpis.dayChange === null ? (
-              <Minus size={16} className="kpi-icon" />
-            ) : kpis.dayChange >= 0 ? (
-              <ArrowUpRight size={16} className="kpi-icon danger" />
-            ) : (
-              <ArrowDownRight size={16} className="kpi-icon positive" />
-            )}
-          </div>
-          <p className={`kpi-value${kpis.dayChange === null ? "" : kpis.dayChange >= 0 ? " kpi-danger" : " kpi-positive"}`}>
-            {isLoading || kpis.dayChange === null
-              ? "—"
-              : `${kpis.dayChange >= 0 ? "+" : ""}${kpis.dayChange.toFixed(1)}%`}
-          </p>
-          <p className="kpi-sub">vs previous day</p>
-        </div>
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
+        ) : (
+          <>
+            <div className="analytics-kpi-card">
+              <div className="kpi-top">
+                <span className="kpi-label">Total Spend</span>
+                <TrendingDown size={16} className="kpi-icon danger" />
+              </div>
+              <p className="kpi-value">{fmt(kpis.total)}</p>
+              <p className="kpi-sub">{kpis.count} transaction{kpis.count !== 1 ? "s" : ""}</p>
+            </div>
+            <div className="analytics-kpi-card">
+              <div className="kpi-top">
+                <span className="kpi-label">Avg / Day</span>
+                <Calendar size={16} className="kpi-icon" />
+              </div>
+              <p className="kpi-value">{fmt(kpis.avgPerDay)}</p>
+              <p className="kpi-sub">across {trendData.length} active day{trendData.length !== 1 ? "s" : ""}</p>
+            </div>
+            <div className="analytics-kpi-card">
+              <div className="kpi-top">
+                <span className="kpi-label">Peak Day</span>
+                <TrendingUp size={16} className="kpi-icon warning" />
+              </div>
+              <p className="kpi-value">{fmt(kpis.highestDay)}</p>
+              <p className="kpi-sub">highest single day</p>
+            </div>
+            <div className="analytics-kpi-card">
+              <div className="kpi-top">
+                <span className="kpi-label">Day-over-Day</span>
+                {kpis.dayChange === null ? <Minus size={16} className="kpi-icon" /> : kpis.dayChange >= 0 ? <ArrowUpRight size={16} className="kpi-icon danger" /> : <ArrowDownRight size={16} className="kpi-icon positive" />}
+              </div>
+              <p className={`kpi-value${kpis.dayChange === null ? "" : kpis.dayChange >= 0 ? " kpi-danger" : " kpi-positive"}`}>
+                {kpis.dayChange === null ? "—" : `${kpis.dayChange >= 0 ? "+" : ""}${kpis.dayChange.toFixed(1)}%`}
+              </p>
+              <p className="kpi-sub">vs previous day</p>
+            </div>
+          </>
+        )}
       </section>
 
       {/* ── AI Insights ── */}
@@ -213,9 +210,9 @@ export default function AnalyticsPage() {
         </div>
         <div className="insight-list">
           {isLoading ? (
-            <p className="empty-state">Loading insights...</p>
+            Array.from({ length: 3 }).map((_, i) => <InsightRowSkeleton key={i} />)
           ) : analyticsInsights.length === 0 ? (
-            <p className="empty-state">No insights available yet.</p>
+            <EmptyState icon={<IconLightbulb />} title="No insights yet" subtitle="Add more transactions to generate spending insights." />
           ) : (
             analyticsInsights.map((insight, i) => (
               <div key={i} className={`insight-item ${insight.type}`}>
@@ -237,9 +234,9 @@ export default function AnalyticsPage() {
             <h3>Category Share</h3>
           </div>
           {isLoading ? (
-            <p className="empty-state">Loading...</p>
+            <ChartSkeleton height={300} />
           ) : isEmpty || categoryChartData.length === 0 ? (
-            <p className="empty-state">No data yet.</p>
+            <EmptyState icon={<IconPieChart />} title="No category data" subtitle="Add transactions to see your spending breakdown." />
           ) : (
             <div className="chart-wrapper">
               <ResponsiveContainer width="100%" height={300}>
@@ -286,9 +283,9 @@ export default function AnalyticsPage() {
             <h3>Spending by Category</h3>
           </div>
           {isLoading ? (
-            <p className="empty-state">Loading...</p>
+            <ChartSkeleton height={300} />
           ) : isEmpty || categoryChartData.length === 0 ? (
-            <p className="empty-state">No chart data yet.</p>
+            <EmptyState icon={<IconBarChart />} title="No category data" subtitle="Add transactions to see spending by category." />
           ) : (
             <div className="chart-wrapper">
               <ResponsiveContainer width="100%" height={300}>
@@ -325,9 +322,9 @@ export default function AnalyticsPage() {
           <h3>Daily Spending</h3>
         </div>
         {isLoading ? (
-          <p className="empty-state">Loading analytics...</p>
+          <ChartSkeleton height={280} />
         ) : isEmpty || trendData.length === 0 ? (
-          <p className="empty-state">No trend data yet.</p>
+          <EmptyState icon={<IconBarChart />} title="No trend data" subtitle="Add transactions to see your daily spending trend." />
         ) : (
           <div className="chart-wrapper">
             <ResponsiveContainer width="100%" height={280}>
@@ -359,9 +356,9 @@ export default function AnalyticsPage() {
           <h3>Total Spending Over Time</h3>
         </div>
         {isLoading ? (
-          <p className="empty-state">Loading analytics...</p>
+          <ChartSkeleton height={280} />
         ) : isEmpty || cumulativeTrendData.length === 0 ? (
-          <p className="empty-state">No cumulative trend data yet.</p>
+          <EmptyState icon={<IconBarChart />} title="No cumulative data" subtitle="Add transactions to see your total spending over time." />
         ) : (
           <div className="chart-wrapper">
             <ResponsiveContainer width="100%" height={280}>

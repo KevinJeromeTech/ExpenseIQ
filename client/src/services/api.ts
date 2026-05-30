@@ -140,6 +140,14 @@ export const categoriesApi = {
   remove: (token: string, id: number) => request<{ message: string }>(`/api/categories/${id}`, "DELETE", { token }),
 };
 
+export const categorizeApi = {
+  suggest: (token: string, merchant: string, opts?: { notes?: string; type?: "expense" | "income" }) =>
+    request<{ category: string }>("/api/categorize", "POST", {
+      token,
+      body: { merchant, ...opts },
+    }),
+};
+
 export const shareApi = {
   generate: (token: string) => request<{ token: string }>("/api/share/generate", "POST", { token }),
   revoke: (token: string) => request<{ message: string }>("/api/share", "DELETE", { token }),

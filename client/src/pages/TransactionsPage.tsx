@@ -5,9 +5,10 @@ import { usePreferencesContext } from "../contexts/PreferencesContext";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../hooks/useCategories";
 import type { Transaction } from "../types";
-import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag, SlidersHorizontal, Search, Calendar } from "lucide-react";
+import { Plus, RefreshCw, Download, Upload, Pencil, Trash2, X, Tag, SlidersHorizontal, Search, Calendar, Sparkles } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import EmptyState, { IconReceipt } from "../components/EmptyState";
+import { categorizeApi } from "../services/api";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -57,6 +58,10 @@ export default function TransactionsPage() {
   const [sortOption, setSortOption] = useState("newest");
   const [dateFilter, setDateFilter] = useState<"all" | "7d" | "30d">("all");
 
+  // AI categorization state
+  const [isCategorizingAI, setIsCategorizingAI] = useState(false);
+  const [aiSuggested, setAiSuggested] = useState(false);
+
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -69,7 +74,25 @@ export default function TransactionsPage() {
     setEditingId(null);
     setNotes("");
     setTransactionType("expense");
+    setAiSuggested(false);
   }, []);
+
+  const handleMerchantBlur = useCallback(async () => {
+    if (!merchant.trim() || editingId !== null || !token) return;
+    setIsCategorizingAI(true);
+    try {
+      const { category: suggested } = await categorizeApi.suggest(token, merchant, {
+        notes: notes || undefined,
+        type: transactionType,
+      });
+      setCategory(suggested);
+      setAiSuggested(true);
+    } catch {
+      // silent — user picks manually
+    } finally {
+      setIsCategorizingAI(false);
+    }
+  }, [merchant, notes, transactionType, editingId, token]);
 
   // Escape key to cancel edit
   useEffect(() => {
@@ -312,7 +335,8 @@ export default function TransactionsPage() {
               list="merchant-suggestions"
               placeholder="Enter merchant name"
               value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
+              onChange={(e) => { setMerchant(e.target.value); setAiSuggested(false); }}
+              onBlur={() => void handleMerchantBlur()}
             />
             <datalist id="merchant-suggestions">
               {merchantSuggestions.map((s) => (
@@ -346,8 +370,12 @@ export default function TransactionsPage() {
           </div>
 
           <label>
-            Category
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <span className="category-label-row">
+              Category
+              {isCategorizingAI && <span className="ai-badge ai-badge--loading"><Sparkles size={11} /> Categorizing…</span>}
+              {!isCategorizingAI && aiSuggested && <span className="ai-badge"><Sparkles size={11} /> AI suggested</span>}
+            </span>
+            <select value={category} onChange={(e) => { setCategory(e.target.value); setAiSuggested(false); }}>
               {currentCategories.map(c => (
                 <option key={c.name} value={c.name}>{c.name}</option>
               ))}

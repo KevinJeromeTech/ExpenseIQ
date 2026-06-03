@@ -6,6 +6,7 @@ import { rateLimit } from "express-rate-limit";
 import { authenticate, AuthRequest } from "./middleware/auth";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
+import Anthropic from "@anthropic-ai/sdk";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -583,6 +584,49 @@ app.delete("/api/categories/:id", authenticate, async (req: AuthRequest & Reques
     res.json({ message: "Category deleted" });
   } catch {
     res.status(500).json({ error: "Failed to delete category" });
+  }
+});
+
+app.post("/api/categorize", authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { merchant, notes, type } = req.body ?? {};
+  if (!merchant || typeof merchant !== "string" || !merchant.trim()) {
+    res.status(400).json({ error: "merchant is required" });
+    return;
+  }
+
+  try {
+    let cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
+    if (cats.length === 0) cats = ALL_DEFAULT_CATEGORIES.map((name, id) => ({ id, name, userId }));
+
+    const isIncome = type === "income";
+    const expenseDefaults = new Set(DEFAULT_EXPENSE_CATEGORIES);
+    const incomeDefaults = new Set(DEFAULT_INCOME_CATEGORIES);
+    const relevant = cats.filter(c =>
+      isIncome ? incomeDefaults.has(c.name) || !expenseDefaults.has(c.name)
+               : expenseDefaults.has(c.name) || !incomeDefaults.has(c.name)
+    );
+    const categoryList = relevant.map(c => c.name).join(", ");
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 32,
+      system: `You are a financial transaction categorizer. Given a merchant name and optional notes, reply with exactly one category name from the provided list. Reply with only the category name — no punctuation, no explanation.`,
+      messages: [{
+        role: "user",
+        content: `Merchant: ${merchant.trim()}${notes ? `\nNotes: ${notes}` : ""}\nCategories: ${categoryList}`,
+      }],
+    });
+
+    const raw = (message.content[0] as { type: string; text: string }).text.trim();
+    const matched = relevant.find(c => c.name.toLowerCase() === raw.toLowerCase());
+    const category = matched?.name ?? relevant[0]?.name ?? "Shopping";
+    res.json({ category });
+  } catch {
+    res.status(500).json({ error: "Categorization failed" });
   }
 });
 

@@ -350,194 +350,75 @@ app.post("/api/budgets", authenticate, async (req: AuthRequest, res: Response) =
 app.get("/api/insights", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-
-    if (!userId) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
     const currentMonth = new Date().toISOString().slice(0, 7);
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const today = now.getDate();
+    const daysLeft = Math.max(daysInMonth - today, 0);
 
-    const transactions = await prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { transactionDate: "desc" },
-    });
-
-    const categoryBudgets = await prisma.budget.findMany({
-      where: { userId, month: currentMonth },
-    });
-    const globalBudget = categoryBudgets.find(b => b.category === 'Monthly');
-
-    type Insight = {
-      type: "positive" | "warning" | "danger";
-      message: string;
-    };
-
-    const insights: Insight[] = [];
+    const [transactions, categoryBudgets] = await Promise.all([
+      prisma.transaction.findMany({ where: { userId }, orderBy: { transactionDate: "desc" } }),
+      prisma.budget.findMany({ where: { userId, month: currentMonth } }),
+    ]);
 
     if (transactions.length === 0) {
-      res.json({
-        insights: [
-          {
-            type: "positive",
-            message:
-              "No transactions yet. Add a few expenses to unlock smarter insights.",
-          },
-        ],
-      });
+      res.json({ insights: [{ type: "positive", message: "No transactions yet. Add a few expenses to unlock AI-powered insights." }] });
       return;
     }
 
-    const totalSpent = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const globalBudget = categoryBudgets.find(b => b.category === "Monthly");
+    const catBudgets = categoryBudgets.filter(b => b.category !== "Monthly");
 
     const categoryTotals: Record<string, number> = {};
-
-    for (const transaction of transactions) {
-      categoryTotals[transaction.category] =
-        (categoryTotals[transaction.category] || 0) + transaction.amount;
+    for (const t of transactions) {
+      categoryTotals[t.category] = (categoryTotals[t.category] ?? 0) + t.amount;
     }
 
-    const sortedCategories = Object.entries(categoryTotals).sort(
-      (a, b) => b[1] - a[1]
-    );
-
-    const [topCategoryName, topCategoryAmount] = sortedCategories[0];
-
-    const largestExpense = transactions.reduce((max, transaction) =>
-      transaction.amount > max.amount ? transaction : max
-    );
-
-    const now = new Date();
-    const today = now.getDate();
-
-    const daysInMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0
-    ).getDate();
-
-    const daysLeft = Math.max(daysInMonth - today, 0);
+    const totalSpent = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
     const dailyAverage = totalSpent / Math.max(today, 1);
     const projectedSpend = dailyAverage * daysInMonth;
+    const largestExpense = transactions.reduce((m, t) => t.amount > m.amount ? t : m);
+    const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
 
-    if (globalBudget && globalBudget.limit > 0) {
-      const percentUsed = (totalSpent / globalBudget.limit) * 100;
+    const context = [
+      `Today: ${now.toDateString()}. Day ${today} of ${daysInMonth} (${daysLeft} days left).`,
+      `Total spent this month: $${totalSpent.toFixed(2)} across ${transactions.length} transactions.`,
+      `Daily average: $${dailyAverage.toFixed(2)}. Projected month-end total: $${projectedSpend.toFixed(2)}.`,
+      globalBudget ? `Monthly budget: $${globalBudget.limit.toFixed(2)} (${((totalSpent / globalBudget.limit) * 100).toFixed(1)}% used, $${Math.max(globalBudget.limit - totalSpent, 0).toFixed(2)} remaining).` : "No monthly budget set.",
+      `Spending by category: ${sortedCategories.map(([c, v]) => `${c} $${v.toFixed(2)}`).join(", ")}.`,
+      `Largest single purchase: $${largestExpense.amount.toFixed(2)} at ${largestExpense.merchant}.`,
+      catBudgets.length > 0
+        ? `Category budgets: ${catBudgets.map(b => `${b.category} $${(categoryTotals[b.category] ?? 0).toFixed(2)}/$${b.limit.toFixed(2)} (${(((categoryTotals[b.category] ?? 0) / b.limit) * 100).toFixed(0)}%)`).join(", ")}.`
+        : "No per-category budgets set.",
+    ].join("\n");
 
-      insights.push({
-        type:
-          percentUsed < 50
-            ? "positive"
-            : percentUsed < 80
-            ? "warning"
-            : "danger",
-        message: `You've spent $${totalSpent.toFixed(
-          2
-        )} this month, which is ${percentUsed.toFixed(1)}% of your budget.`,
-      });
-    } else {
-      insights.push({
-        type: "warning",
-        message: `You've spent $${totalSpent.toFixed(
-          2
-        )} this month. Set a monthly budget to unlock better insights.`,
-      });
-    }
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 600,
+      system: `You are a personal finance advisor. Given a user's monthly spending data, generate exactly 5 concise, actionable insights. Be specific with numbers. Vary the tone — mix encouragement with honest warnings where warranted.
 
-    const topCategoryPercent = (topCategoryAmount / totalSpent) * 100;
+Respond with ONLY a valid JSON array. Each element must have:
+- "type": one of "positive", "warning", or "danger"
+- "message": one sentence, max 120 characters
 
-    insights.push({
-      type: "warning",
-      message: `${topCategoryName} is your largest spending category at $${topCategoryAmount.toFixed(
-        2
-      )} (${topCategoryPercent.toFixed(1)}% of total spending).`,
+Example format:
+[{"type":"positive","message":"..."},{"type":"warning","message":"..."}]`,
+      messages: [{ role: "user", content: context }],
     });
 
-    insights.push({
-      type: "positive",
-      message: `Your largest purchase was $${largestExpense.amount.toFixed(
-        2
-      )} at ${largestExpense.merchant}.`,
-    });
+    const raw = (response.content[0] as { type: string; text: string }).text.trim();
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("No JSON array in Claude response");
 
-    let projectionType: "positive" | "warning" | "danger" = "positive";
+    const parsed = JSON.parse(jsonMatch[0]) as { type: string; message: string }[];
+    const valid = parsed
+      .filter(i => ["positive", "warning", "danger"].includes(i.type) && typeof i.message === "string")
+      .slice(0, 7) as { type: "positive" | "warning" | "danger"; message: string }[];
 
-    if (globalBudget && globalBudget.limit > 0) {
-      const projectedPercent = (projectedSpend / globalBudget.limit) * 100;
-
-      if (projectedPercent > 100) {
-        projectionType = "danger";
-      } else if (projectedPercent >= 80) {
-        projectionType = "warning";
-      }
-    }
-
-    insights.push({
-      type: projectionType,
-      message: `At your current pace, you're projected to spend $${projectedSpend.toFixed(
-        2
-      )} by month-end.`,
-    });
-
-    if (globalBudget && globalBudget.limit > 0) {
-      if (projectedSpend > globalBudget.limit) {
-        insights.push({
-          type: "danger",
-          message: `You are trending over budget by $${(
-            projectedSpend - globalBudget.limit
-          ).toFixed(2)} this month.`,
-        });
-      } else {
-        insights.push({
-          type: "positive",
-          message: `You are currently on pace to stay $${(
-            globalBudget.limit - projectedSpend
-          ).toFixed(2)} under budget.`,
-        });
-      }
-
-      const remaining = globalBudget.limit - totalSpent;
-
-      if (daysLeft > 0) {
-        const rawDailySpend = remaining / daysLeft;
-        const safeDailySpend = Math.max(rawDailySpend, 0);
-        const percentUsed = (totalSpent / globalBudget.limit) * 100;
-
-        if (percentUsed >= 60) {
-          insights.push({
-            type: percentUsed >= 80 ? "danger" : "warning",
-            message: `To stay on budget, keep daily spending around $${safeDailySpend.toFixed(
-              2
-            )} for the rest of the month.`,
-          });
-        } else {
-          insights.push({
-            type: "positive",
-            message:
-              "You still have plenty of room in your budget this month.",
-          });
-        }
-      }
-    }
-
-    // Per-category budget insights
-    const categoriesWithBudget = categoryBudgets.filter(b => b.category !== 'Monthly');
-    for (const catBudget of categoriesWithBudget) {
-      const catSpent = categoryTotals[catBudget.category] ?? 0;
-      const catPercent = (catSpent / catBudget.limit) * 100;
-      if (catPercent >= 100) {
-        insights.push({
-          type: 'danger',
-          message: `You've exceeded your ${catBudget.category} budget ($${catSpent.toFixed(2)} / $${catBudget.limit.toFixed(2)}).`,
-        });
-      } else if (catPercent >= 75) {
-        insights.push({
-          type: 'warning',
-          message: `You're at ${catPercent.toFixed(0)}% of your ${catBudget.category} budget ($${catSpent.toFixed(2)} / $${catBudget.limit.toFixed(2)}).`,
-        });
-      }
-    }
-
-    res.json({ insights: insights.slice(0, 7) });
+    res.json({ insights: valid });
   } catch (error) {
     console.error("Failed to generate insights:", error);
     res.status(500).json({ error: "Failed to generate insights" });

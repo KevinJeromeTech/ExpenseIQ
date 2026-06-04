@@ -8,6 +8,9 @@ import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import Anthropic from "@anthropic-ai/sdk";
 
+// Track which users have had recurring transactions processed today (resets on server restart)
+const recurringProcessedOn = new Map<number, string>(); // userId → "YYYY-MM-DD"
+
 const app = express();
 const prisma = new PrismaClient();
 
@@ -56,7 +59,16 @@ app.get("/api/transactions", authenticate, async (req: AuthRequest, res: Respons
       orderBy: { transactionDate: "desc" },
     });
 
-    // Process recurring transactions
+    // Process recurring transactions — at most once per user per calendar day to prevent
+    // deleted transactions from being immediately recreated on the next fetch.
+    const todayStr = new Date().toISOString().split("T")[0];
+    const alreadyRanToday = recurringProcessedOn.get(userId) === todayStr;
+    if (alreadyRanToday) {
+      res.json(transactions);
+      return;
+    }
+    recurringProcessedOn.set(userId, todayStr);
+
     const recurringTransactions = transactions.filter(t => t.isRecurring && t.frequency);
     const now = new Date();
     const newEntries = [];

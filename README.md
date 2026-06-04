@@ -18,7 +18,7 @@ A full-stack personal finance dashboard for tracking spending, managing budgets,
 **Dashboard**
 - Monthly spend summary and global budget progress bar
 - Financial snapshot (largest purchase, avg transaction, net income, budget status)
-- AI-style spending insights (on track / near limit / over budget / projected overage)
+- Spending insights engine — rule-based logic flags on track / near limit / over budget / projected overage states against each category budget
 - Per-category budget cards — click any card to set or edit a monthly limit inline; progress bar turns amber at 75% and red at 100%
 - Month-over-month category comparison
 - Achievements / milestones (Budget Keeper, Savings Star, Active Tracker, etc.)
@@ -27,6 +27,7 @@ A full-stack personal finance dashboard for tracking spending, managing budgets,
 
 **Transactions**
 - Add, edit, and delete expense and income transactions
+- **AI auto-categorization** — powered by [Claude Haiku](https://www.anthropic.com/claude) (`claude-haiku-4-5`); when you enter a merchant name and tab away, the category is auto-filled based on your category list with a ✦ AI suggested badge
 - Recurring transactions — weekly / bi-weekly / monthly / yearly; server auto-creates occurrences on schedule
 - Duplicate detection — flags same merchant + amount on the same day
 - Search by merchant, filter by category and date range, sort by newest / oldest / highest / lowest
@@ -90,6 +91,7 @@ A full-stack personal finance dashboard for tracking spending, managing budgets,
 | Frontend | React 19, TypeScript 5.9, Vite 7 |
 | State / Data | TanStack React Query v5 |
 | Charts | Recharts |
+| AI | Anthropic Claude API (`claude-haiku-4-5`) |
 | Routing | React Router v7 |
 | Backend | Node.js, Express 5 |
 | Validation | Zod |
@@ -178,6 +180,7 @@ npm install --prefix server
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-secret-here"
 PORT=4000
+ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
 
 **`client/.env`**
@@ -222,7 +225,8 @@ All routes except `/api/auth/*` and `/api/share/:token` require `Authorization: 
 | DELETE | `/api/transactions/:id` | Delete transaction |
 | GET | `/api/budgets` | List budgets (monthly + per-category) |
 | POST | `/api/budgets` | Create or update a budget |
-| GET | `/api/insights` | Get AI-style spending insights |
+| GET | `/api/insights` | Get rule-based spending insights (on track / over budget) |
+| POST | `/api/categorize` | AI-suggest a category for a merchant (Claude Haiku) |
 | GET | `/api/categories` | List custom categories |
 | POST | `/api/categories` | Add a category |
 | DELETE | `/api/categories/:id` | Remove a category |
@@ -258,7 +262,7 @@ Unit tests covering:
 - [ ] Weekly email digest
 - [ ] Command palette (`Cmd+K`) for quick-add and navigation
 - [ ] Animated number counters on stat cards
-- [ ] Skeleton loaders in place of "Loading…" text
+- [x] Skeleton loaders in place of "Loading…" text
 - [ ] Rate limiting on all endpoints (currently auth-only)
 - [ ] Docker setup for one-command local dev
 

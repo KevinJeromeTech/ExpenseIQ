@@ -429,18 +429,22 @@ const DEFAULT_EXPENSE_CATEGORIES = ["Shopping", "Food", "Transport", "Bills", "E
 const DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Investment", "Gift", "Other Income"];
 const ALL_DEFAULT_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
 
+// Track which users have already had default categories seeded so deletions aren't undone
+const categoriesSeeded = new Set<number>();
+
 app.get("/api/categories", authenticate, async (req: AuthRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     let cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
-    if (cats.length === 0) {
+    if (cats.length === 0 && !categoriesSeeded.has(userId)) {
       await prisma.category.createMany({
         data: ALL_DEFAULT_CATEGORIES.map(name => ({ name, userId })),
         skipDuplicates: true,
       });
       cats = await prisma.category.findMany({ where: { userId }, orderBy: { name: "asc" } });
     }
+    if (cats.length > 0) categoriesSeeded.add(userId);
     res.json(cats);
   } catch { res.status(500).json({ error: "Failed to fetch categories" }); }
 });
